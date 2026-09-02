@@ -3,16 +3,28 @@ package main
 import (
 	"log"
 	"net"
+	"os"
 
 	"github.com/go-mysql-org/go-mysql/server"
+	"github.com/joho/godotenv"
 )
 
 func main() {
-	l, err := net.Listen("tcp", "0.0.0.0:3306")
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, using defaults")
+	}
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "3306"
+	}
+
+	addr := "0.0.0.0:" + port
+	l, err := net.Listen("tcp", addr)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println("MySQL black hole server listening on 0.0.0.0:3306")
+	log.Printf("MySQL black hole server listening on %s\n", addr)
 
 	srv := server.NewDefaultServer()
 
