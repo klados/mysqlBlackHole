@@ -12,7 +12,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println("MySQL blackhole server listening on 0.0.0.0:3306")
+	log.Println("MySQL black hole server listening on 0.0.0.0:3306")
+
+	srv := server.NewDefaultServer()
 
 	for {
 		c, err := l.Accept()
@@ -22,13 +24,11 @@ func main() {
 		}
 
 		go func() {
-			conn, err := server.NewConn(c, "root", "", server.EmptyHandler{})
+			conn, err := srv.NewCustomizedConn(c, &BlackHoleAuthHandler{}, &BlackHoleHandler{})
 			if err != nil {
-				log.Println("connection error:", err)
 				c.Close()
 				return
 			}
-			log.Printf("new connection id=%d user=%s\n", conn.ConnectionID(), conn.GetUser())
 
 			for {
 				if err := conn.HandleCommand(); err != nil {
