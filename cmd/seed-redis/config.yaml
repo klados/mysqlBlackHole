@@ -2,7 +2,6 @@ allowed_dbs:
   - information_schema
   - mysql
   - performance_schema
-  - sys
   - analytics
 
 mysql_users:

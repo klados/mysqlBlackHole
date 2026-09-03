@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"embed"
-	"encoding/json"
+
 	"log"
 	"os"
 
@@ -68,16 +68,16 @@ func seedMySQLUsers(ctx context.Context, client *redis.Client, mysqlUsers []sqle
 		return err
 	}
 
-	values := make([]any, 0, len(mysqlUsers))
-	for _, u := range mysqlUsers {
-		b, err := json.Marshal(u)
-		if err != nil {
-			return err
-		}
-		values = append(values, string(b))
+	if len(mysqlUsers) == 0 {
+		return nil
 	}
 
-	return client.RPush(ctx, sqlemulate.KeyMySQLUsers, values...).Err()
+	fields := make(map[string]any, len(mysqlUsers))
+	for _, u := range mysqlUsers {
+		fields[u.Username] = u.Password
+	}
+
+	return client.HSet(ctx, sqlemulate.KeyMySQLUsers, fields).Err()
 }
 
 func loadConfig() (*Config, error) {

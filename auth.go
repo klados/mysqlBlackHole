@@ -1,13 +1,20 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"log"
 
 	"github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/go-mysql-org/go-mysql/server"
+	"github.com/redis/go-redis/v9"
+
+	"mysqlBlackHole/model/sqlemulate"
 )
 
-type BlackHoleAuthHandler struct{}
+type BlackHoleAuthHandler struct {
+	redis *redis.Client
+}
 
 func (h BlackHoleAuthHandler) OnAuthSuccess(conn *server.Conn) error {
 	log.Println("Auth success for username:", conn.GetUser(), "from:", conn.RemoteAddr())
@@ -19,12 +26,16 @@ func (h BlackHoleAuthHandler) OnAuthFailure(conn *server.Conn, err error) {
 }
 
 func (h BlackHoleAuthHandler) GetCredential(username string) (server.Credential, bool, error) {
-	if username != "root" {
+	password, err := h.redis.HGet(context.Background(), sqlemulate.KeyMySQLUsers, username).Result()
+	if errors.Is(err, redis.Nil) {
 		return server.Credential{}, false, server.ErrAccessDenied
+	}
+	if err != nil {
+		return server.Credential{}, false, err
 	}
 
 	return server.Credential{
-		Passwords:      []string{""},
+		Passwords:      []string{password},
 		AuthPluginName: mysql.AUTH_NATIVE_PASSWORD,
 	}, true, nil
 }
