@@ -1,0 +1,12 @@
+allowed_dbs:
+  - information_schema
+  - mysql
+  - performance_schema
+  - sys
+  - analytics
+
+mysql_users:
+  - username: root
+    password: s3cret
+  - username: app
+    password: 123456
