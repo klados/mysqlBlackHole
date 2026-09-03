@@ -1,18 +1,29 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"mysqlBlackHole/model/sqlemulate"
 	"strings"
 
 	"github.com/go-mysql-org/go-mysql/mysql"
+	"github.com/redis/go-redis/v9"
 )
 
 type BlackHoleHandler struct {
 	currentDB string
+	redis     *redis.Client
 }
 
 func (h *BlackHoleHandler) UseDB(dbName string) error {
-	// toDo allow specific database names read them from redis
+	exists, err := h.redis.SIsMember(context.Background(), sqlemulate.KeyAllowedDBs, dbName).Result()
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("Unknown database '%s'", dbName)
+	}
+
 	h.currentDB = dbName
 	return nil
 }

@@ -51,7 +51,7 @@ func main() {
 		}
 
 		go func() {
-			conn, err := srv.NewCustomizedConn(c, &BlackHoleAuthHandler{redis: rdb}, &BlackHoleHandler{})
+			conn, err := srv.NewCustomizedConn(c, &BlackHoleAuthHandler{redis: rdb}, &BlackHoleHandler{redis: rdb})
 			if err != nil {
 				c.Close()
 				return

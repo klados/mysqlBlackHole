@@ -60,7 +60,7 @@ func seedAllowedDBs(ctx context.Context, client *redis.Client, allowedDBs []stri
 	if err := client.Del(ctx, sqlemulate.KeyAllowedDBs).Err(); err != nil {
 		return err
 	}
-	return client.RPush(ctx, sqlemulate.KeyAllowedDBs, stringSliceToAny(allowedDBs)...).Err()
+	return client.SAdd(ctx, sqlemulate.KeyAllowedDBs, stringSliceToAny(allowedDBs)...).Err()
 }
 
 func seedMySQLUsers(ctx context.Context, client *redis.Client, mysqlUsers []sqlemulate.MySQLUser) error {
