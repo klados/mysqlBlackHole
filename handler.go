@@ -15,6 +15,8 @@ type BlackHoleHandler struct {
 	redis     *redis.Client
 }
 
+// UseDB handles the COM_INIT_DB packet, sent when a client executes "USE <db>".
+// It validates the database is in the allowed list and tracks it as the current DB.
 func (h *BlackHoleHandler) UseDB(dbName string) error {
 	exists, err := h.redis.SIsMember(context.Background(), sqlemulate.KeyAllowedDBs, dbName).Result()
 	if err != nil {
@@ -28,80 +30,54 @@ func (h *BlackHoleHandler) UseDB(dbName string) error {
 	return nil
 }
 
-func buildResult(columns []string, rows [][]any) (*mysql.Result, error) {
-	r, err := mysql.BuildSimpleResultset(columns, rows, false)
-	if err != nil {
-		return nil, err
-	}
-	return mysql.NewResult(r), nil
-}
-
+// HandleQuery handles the COM_QUERY packet, covering ordinary SQL statements such as
+// SELECT, SHOW, and others. It inspects the query and delegates to the matching
+// helper in query_handlers.go.
 func (h *BlackHoleHandler) HandleQuery(query string) (*mysql.Result, error) {
-	q := strings.TrimSpace(query)
-	upper := strings.ToUpper(q)
+	upper := strings.ToUpper(strings.TrimSpace(query))
 
 	switch {
 	case upper == "SHOW DATABASES" || upper == "SHOW SCHEMAS":
-		return buildResult(
-			[]string{"Database"},
-			[][]any{{"information_schema"}, {"mysql"}, {"test"}},
-		)
-
+		return handleShowDatabases()
 	case strings.HasPrefix(upper, "SHOW TABLES"):
-		tables := []any{"users", "orders", "products"}
-		rows := make([][]any, len(tables))
-		for i, t := range tables {
-			rows[i] = []any{t}
-		}
-		colName := "Tables_in_" + h.currentDB
-		if h.currentDB == "" {
-			colName = "Tables_in_"
-		}
-		return buildResult([]string{colName}, rows)
-
+		return handleShowTables(h.currentDB)
 	case upper == "SELECT DATABASE()" || upper == "SELECT DATABASE() AS `DATABASE()`":
-		db := h.currentDB
-		if db == "" {
-			db = "NULL"
-		}
-		return buildResult(
-			[]string{"DATABASE()"},
-			[][]any{{db}},
-		)
-
+		return handleSelectDatabase(h.currentDB)
 	case strings.HasPrefix(upper, "SELECT") && strings.Contains(upper, "VERSION"):
-		return buildResult(
-			[]string{"version()"},
-			[][]any{{"5.7.0-blackhole"}},
-		)
-
-	case upper == "STATUS" || upper == "SELECT 1" || upper == "SELECT 1 AS `1`":
-		return mysql.NewResult(nil), nil
-
+		return handleSelectVersion()
 	case strings.HasPrefix(upper, "SELECT"):
-		return buildResult([]string{"result"}, [][]any{})
-
+		return handleSelectFallback()
 	default:
 		return mysql.NewResult(nil), nil
 	}
 }
 
+// HandleFieldList handles the COM_FIELD_LIST packet, used by clients to ask for the
+// columns of a table. Not supported.
 func (h *BlackHoleHandler) HandleFieldList(table string, fieldWildcard string) ([]*mysql.Field, error) {
 	return nil, fmt.Errorf("not supported")
 }
 
+// HandleStmtPrepare handles the COM_STMT_PREPARE packet, the first step of prepared
+// statement support. It is a no-op so clients can prepare statements without error.
 func (h *BlackHoleHandler) HandleStmtPrepare(query string) (int, int, any, error) {
 	return 0, 0, nil, nil
 }
 
+// HandleStmtExecute handles the COM_STMT_EXECUTE packet, which executes a previously
+// prepared statement. It returns an empty result set.
 func (h *BlackHoleHandler) HandleStmtExecute(context any, query string, args []any) (*mysql.Result, error) {
 	return mysql.NewResult(nil), nil
 }
 
+// HandleStmtClose handles the COM_STMT_CLOSE packet, releasing a prepared statement.
+// It's a no-op since prepared statements are not tracked.
 func (h *BlackHoleHandler) HandleStmtClose(context any) error {
 	return nil
 }
 
+// HandleOtherCommand handles any MySQL command not covered above (e.g. COM_SET_OPTION).
+// Not supported.
 func (h *BlackHoleHandler) HandleOtherCommand(cmd byte, data []byte) error {
 	return fmt.Errorf("not supported")
 }
