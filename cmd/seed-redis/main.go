@@ -18,8 +18,8 @@ import (
 var configFS embed.FS
 
 type Config struct {
-	AllowedDBs []string               `yaml:"allowed_dbs"`
-	MySQLUsers []sqlemulate.MySQLUser `yaml:"mysql_users"`
+	SupportedDBs []sqlemulate.SupportedDbs `yaml:"supported_dbs"`
+	MySQLUsers   []sqlemulate.MySQLUser    `yaml:"mysql_users"`
 }
 
 func main() {
@@ -46,8 +46,8 @@ func main() {
 	log.Printf("connected to redis at %s", addr)
 	defer client.Close()
 
-	if err := seedAllowedDBs(ctx, client, cfg.AllowedDBs); err != nil {
-		log.Fatalf("failed to seed %s: %v", sqlemulate.KeyAllowedDBs, err)
+	if err := seedSupportedDBs(ctx, client, cfg.SupportedDBs); err != nil {
+		log.Fatalf("failed to seed %s: %v", sqlemulate.KeySupportedDBs, err)
 	}
 	if err := seedMySQLUsers(ctx, client, cfg.MySQLUsers); err != nil {
 		log.Fatalf("failed to seed %s: %v", sqlemulate.KeyMySQLUsers, err)
@@ -56,11 +56,41 @@ func main() {
 	log.Println("redis seeding complete")
 }
 
-func seedAllowedDBs(ctx context.Context, client *redis.Client, allowedDBs []string) error {
-	if err := client.Del(ctx, sqlemulate.KeyAllowedDBs).Err(); err != nil {
+func seedSupportedDBs(ctx context.Context, client *redis.Client, allowedDBs []sqlemulate.SupportedDbs) error {
+	if err := client.Del(ctx, sqlemulate.KeySupportedDBs).Err(); err != nil {
 		return err
 	}
-	return client.SAdd(ctx, sqlemulate.KeyAllowedDBs, stringSliceToAny(allowedDBs)...).Err()
+
+	dbNames := make([]any, 0, len(allowedDBs))
+	for _, db := range allowedDBs {
+		dbNames = append(dbNames, db.Name)
+	}
+	if err := client.SAdd(ctx, sqlemulate.KeySupportedDBs, dbNames...).Err(); err != nil {
+		return err
+	}
+
+	for _, db := range allowedDBs {
+		usersKey := sqlemulate.GetSupportedDBUsersKey(db.Name)
+		tablesKey := sqlemulate.GetAllowedDBTablesKey(db.Name)
+
+		if err := client.Del(ctx, usersKey, tablesKey).Err(); err != nil {
+			return err
+		}
+
+		if len(db.Users) > 0 {
+			if err := client.SAdd(ctx, usersKey, stringSliceToAny(db.Users)...).Err(); err != nil {
+				return err
+			}
+		}
+
+		if len(db.Tables) > 0 {
+			if err := client.SAdd(ctx, tablesKey, stringSliceToAny(db.Tables)...).Err(); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func seedMySQLUsers(ctx context.Context, client *redis.Client, mysqlUsers []sqlemulate.MySQLUser) error {

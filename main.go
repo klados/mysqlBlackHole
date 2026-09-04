@@ -51,11 +51,13 @@ func main() {
 		}
 
 		go func() {
-			conn, err := srv.NewCustomizedConn(c, &BlackHoleAuthHandler{redis: rdb}, &BlackHoleHandler{redis: rdb})
+			handler := &BlackHoleHandler{redis: rdb}
+			conn, err := srv.NewCustomizedConn(c, &BlackHoleAuthHandler{redis: rdb}, handler)
 			if err != nil {
 				c.Close()
 				return
 			}
+			handler.SetUsername(conn.GetUser())
 
 			for {
 				if err := conn.HandleCommand(); err != nil {

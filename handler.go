@@ -12,18 +12,25 @@ import (
 
 type BlackHoleHandler struct {
 	currentDB string
+	username  string
 	redis     *redis.Client
 }
 
+// SetUsername stores the authenticated username so DB access can be scoped per user.
+func (h *BlackHoleHandler) SetUsername(username string) {
+	h.username = username
+}
+
 // UseDB handles the COM_INIT_DB packet, sent when a client executes "USE <db>".
-// It validates the database is in the allowed list and tracks it as the current DB.
+// It validates the authenticated user is allowed to use the database and tracks
+// it as the current DB.
 func (h *BlackHoleHandler) UseDB(dbName string) error {
-	exists, err := h.redis.SIsMember(context.Background(), sqlemulate.KeyAllowedDBs, dbName).Result()
+	allowed, err := h.redis.SIsMember(context.Background(), sqlemulate.GetSupportedDBUsersKey(dbName), h.username).Result()
 	if err != nil {
 		return err
 	}
-	if !exists {
-		return fmt.Errorf("Unknown database '%s'", dbName)
+	if !allowed {
+		return fmt.Errorf("Access denied for user '%s' to database '%s'", h.username, dbName)
 	}
 
 	h.currentDB = dbName
@@ -38,9 +45,9 @@ func (h *BlackHoleHandler) HandleQuery(query string) (*mysql.Result, error) {
 
 	switch {
 	case upper == "SHOW DATABASES" || upper == "SHOW SCHEMAS":
-		return handleShowDatabases()
+		return handleShowDatabases(h.redis, h.username)
 	case strings.HasPrefix(upper, "SHOW TABLES"):
-		return handleShowTables(h.currentDB)
+		return handleShowTables(h.redis, h.currentDB)
 	case upper == "SELECT DATABASE()" || upper == "SELECT DATABASE() AS `DATABASE()`":
 		return handleSelectDatabase(h.currentDB)
 	case strings.HasPrefix(upper, "SELECT") && strings.Contains(upper, "VERSION"):
