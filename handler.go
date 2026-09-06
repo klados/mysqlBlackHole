@@ -41,7 +41,7 @@ func (h *BlackHoleHandler) UseDB(dbName string) error {
 // SELECT, SHOW, and others. It inspects the query and delegates to the matching
 // helper in query_handlers.go.
 func (h *BlackHoleHandler) HandleQuery(query string) (*mysql.Result, error) {
-	upper := strings.ToUpper(strings.TrimSpace(query))
+	upper := strings.ToUpper(strings.Join(strings.Fields(strings.TrimSpace(query)), " "))
 
 	switch {
 	case upper == "SHOW DATABASES" || upper == "SHOW SCHEMAS":
