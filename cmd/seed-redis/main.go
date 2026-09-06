@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"embed"
+	"encoding/json"
 
 	"log"
 	"os"
@@ -88,9 +89,48 @@ func seedSupportedDBs(ctx context.Context, client *redis.Client, allowedDBs []sq
 				return err
 			}
 		}
+
+		if err := seedTableData(ctx, client, db.Name, db.TableData); err != nil {
+			return err
+		}
 	}
 
 	return nil
+}
+
+func seedTableData(ctx context.Context, client *redis.Client, dbName string, tableData map[string]sqlemulate.TableData) error {
+	if err := deleteTableDataKeys(ctx, client, dbName); err != nil {
+		return err
+	}
+
+	for table, data := range tableData {
+		if len(data.Columns) == 0 {
+			continue
+		}
+
+		payload, err := json.Marshal(data)
+		if err != nil {
+			return err
+		}
+
+		if err := client.Set(ctx, sqlemulate.GetTableDataKey(dbName, table), payload, 0).Err(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func deleteTableDataKeys(ctx context.Context, client *redis.Client, dbName string) error {
+	pattern := sqlemulate.GetTableDataKey(dbName, "*")
+	iter := client.Scan(ctx, 0, pattern, 100).Iterator()
+	for iter.Next(ctx) {
+		if err := client.Del(ctx, iter.Val()).Err(); err != nil {
+			return err
+		}
+	}
+
+	return iter.Err()
 }
 
 func seedMySQLUsers(ctx context.Context, client *redis.Client, mysqlUsers []sqlemulate.MySQLUser) error {

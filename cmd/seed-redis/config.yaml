@@ -260,6 +260,36 @@ supported_dbs:
       - user_passwords_hash
       - aws_api_keys
       - ssn_records
+    table_data:
+      admin_credentials:
+        columns: [id, username, password_hash, role]
+        rows:
+          - [1, margaret_murphy, "$2y$10$4o3qX4qO8JfZxWtKp2vZwO9yO0vMfBmQ3iNp1Gq6lZc1Jk0uCvFmG", admin]
+          - [2, kathleen_cole, "$2y$10$o3qX4qO8JfZxWtKp2vZwOeP9qnQeDq3sW5pJ6vBfY8rFwZ1uCvFmG", auditor]
+          - [3, james_smith, "$2y$10$w4pZ7qO8JfZxWtKp2vZwOo2jQ8dVbH7mQ9kG3pLhY6cXaZ2uCvFmG", staff]
+      credit_card_data:
+        columns: [id, card_holder, card_number, expiry, cvv]
+        rows:
+          - [1, Margaret Murphy, 4532015112830366, "05/27", 839]
+          - [2, Kathleen Cole, 5431123998765512, "11/28", 104]
+          - [3, James Smith, 6011306125842364, "01/26", 662]
+      user_passwords_hash:
+        columns: [id, username, password_hash, last_changed]
+        rows:
+          - [1, margaret_murphy, "$2y$10$4o3qX4qO8JfZxWtKp2vZwO9yO0vMfBmQ3iNp1Gq6lZc1Jk0uCvFmG", "2025-11-03"]
+          - [2, kathleen_cole, "$2y$10$o3qX4qO8JfZxWtKp2vZwOeP9qnQeDq3sW5pJ6vBfY8rFwZ1uCvFmG", "2025-12-18"]
+          - [3, james_smith, "$2y$10$w4pZ7qO8JfZxWtKp2vZwOo2jQ8dVbH7mQ9kG3pLhY6cXaZ2uCvFmG", "2026-01-09"]
+      aws_api_keys:
+        columns: [id, key_name, access_key_id, secret_access_key, region]
+        rows:
+          - [1, production, AKIAI44QH8DHBEXAMPLE, wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY, us-east-1]
+          - [2, staging, AKIAIOSFODNN7EXAMPLE, wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY2, eu-west-1]
+      ssn_records:
+        columns: [id, full_name, ssn, dob, address]
+        rows:
+          - [1, Margaret Murphy, 422-33-8890, "1968-04-12", 4122 Harborview Ln]
+          - [2, Kathleen Cole, 551-77-1249, "1975-09-30", 88 Beacon Street]
+          - [3, James Smith, 318-94-6652, "1982-02-21", 77 Plantation Dr]
 
 mysql_users:
   - username: root

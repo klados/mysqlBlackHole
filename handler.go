@@ -53,7 +53,7 @@ func (h *BlackHoleHandler) HandleQuery(query string) (*mysql.Result, error) {
 	case strings.HasPrefix(upper, "SELECT") && strings.Contains(upper, "VERSION"):
 		return handleSelectVersion()
 	case strings.HasPrefix(upper, "SELECT"):
-		return handleSelectFallback()
+		return handleSelect(h.redis, h.currentDB, query)
 	default:
 		return mysql.NewResult(nil), nil
 	}

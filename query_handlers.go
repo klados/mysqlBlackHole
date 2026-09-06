@@ -89,9 +89,3 @@ func handleSelectVersion() (*mysql.Result, error) {
 		[][]any{{"26.7.0 MySQL Community Server - GPL"}},
 	)
 }
-
-// handleSelectFallback is the catch-all handler for other SELECT statements,
-// returning an empty resultset.
-func handleSelectFallback() (*mysql.Result, error) {
-	return buildResult([]string{"result"}, [][]any{})
-}
