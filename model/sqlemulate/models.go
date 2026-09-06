@@ -19,9 +19,14 @@ type SupportedDbs struct {
 	TableData map[string]TableData `yaml:"table_data"`
 }
 
+type Column struct {
+	Name string `yaml:"name" json:"name"`
+	Type string `yaml:"type" json:"type"`
+}
+
 type TableData struct {
-	Columns []string `json:"columns"`
-	Rows    [][]any  `json:"rows"`
+	Columns []Column `yaml:"columns" json:"columns"`
+	Rows    [][]any  `yaml:"rows" json:"rows"`
 }
 
 func GetSupportedDBUsersKey(db string) string {

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/redis/go-redis/v9"
@@ -79,6 +80,25 @@ func handleSelectDatabase(dbName string) (*mysql.Result, error) {
 		db = "NULL"
 	}
 	return buildResult([]string{"DATABASE()"}, [][]any{{db}})
+}
+
+// handleUse answers USE <db>, delegating to BlackHoleHandler.UseDB so the
+// current database is tracked for subsequent queries. The database name keeps
+// its original case since identifiers may be case-sensitive. It returns an
+// empty result on success, matching MySQL's behavior.
+func handleUse(h *BlackHoleHandler, query string) (*mysql.Result, error) {
+	fields := strings.Fields(query)
+	if len(fields) < 2 {
+		return mysql.NewResult(nil), nil
+	}
+	db := strings.TrimSuffix(fields[1], ";")
+	if db == "" {
+		return mysql.NewResult(nil), nil
+	}
+	if err := h.UseDB(db); err != nil {
+		return nil, err
+	}
+	return mysql.NewResult(nil), nil
 }
 
 // handleSelectVersion answers SELECT VERSION(), returning a fixed MySQL

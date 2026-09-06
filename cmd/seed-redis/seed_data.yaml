@@ -262,7 +262,15 @@ supported_dbs:
       - due_diligence_items
     table_data:
       clients:
-        columns: [id, company_name, sector, principal_name, title, personal_email, direct_phone, status]
+        columns:
+          - {name: id, type: INT}
+          - {name: company_name, type: VARCHAR(60)}
+          - {name: sector, type: VARCHAR(30)}
+          - {name: principal_name, type: VARCHAR(50)}
+          - {name: title, type: VARCHAR(30)}
+          - {name: personal_email, type: VARCHAR(40)}
+          - {name: direct_phone, type: VARCHAR(15)}
+          - {name: status, type: VARCHAR(20)}
         rows:
           - [1, 'Aether Dynamics', 'Advanced Robotics', 'Dr. Elena Vance', 'CEO', 'evance@aether-dyn.com', '+1-617-555-8901', 'Mandated']
           - [2, 'Blue Ridge Logistics', 'Transportation', 'Marcus Thorne', 'CFO', 'mthorne@br-logistics.com', '+1-303-555-4412', 'Exclusivity']
@@ -289,7 +297,14 @@ supported_dbs:
           - [23, 'Xenon Labs', 'Chemicals', 'Dr. Hans Muller', 'Scientist/Owner', 'hmuller@xenonlabs.com', '+1-610-555-4482', 'Mandated']
           - [24, 'Yellowstone Oil & Gas', 'Energy', 'Gary L. Sneed', 'CEO', 'gsneed@yellowstoneoil.com', '+1-307-555-9910', 'Sold']
       counterparties:
-        columns: [id, company_name, sector, hq_location, ownership_type, revenue_range_millions, weakness_flag]
+        columns:
+          - {name: id, type: INT}
+          - {name: company_name, type: VARCHAR(60)}
+          - {name: sector, type: VARCHAR(30)}
+          - {name: hq_location, type: VARCHAR(40)}
+          - {name: ownership_type, type: VARCHAR(20)}
+          - {name: revenue_range_millions, type: VARCHAR(15)}
+          - {name: weakness_flag, type: TEXT}
         rows:
           - [1, 'Aether Dynamics', 'Robotics', 'Boston, MA', 'Private Founder-Led', '$30-60M', 'Critical dependency on single foreign supplier for actuators']
           - [2, 'Blue Ridge Logistics', 'Transportation', 'Denver, CO', 'Holding Company Subsidiary', '$50-100M', 'Union contract renegotiation scheduled in Q4']
@@ -322,7 +337,12 @@ supported_dbs:
           - [29, 'Delta Steel Works', 'Materials', 'Gary, IN', 'Public Company (Small Cap)', '$400-500M', 'Environmental liability hidden in shell subsidiary']
           - [30, 'Eco-Freight Systems', 'Logistics', 'Atlanta, GA', 'Green Fund Backed', '$30-40M', 'Management team lacks experience in scale-up phase']
       bankers:
-        columns: [id, full_name, email, role, password_hash]
+        columns:
+          - {name: id, type: INT}
+          - {name: full_name, type: VARCHAR(50)}
+          - {name: email, type: VARCHAR(40)}
+          - {name: role, type: VARCHAR(20)}
+          - {name: password_hash, type: TEXT}
         rows:
           - [1, 'Arthur Sterling', 'asterling@meridian-advisors.com', 'Managing Director', '$2b$12$LJ3m4iv5o6p7q8r9s0t1uVwXyZaBcDeFgHiJkLmNoPqRsTu']
           - [2, 'Victoria Chase', 'vchase@meridian-advisors.com', 'Associate', '$2b$12$Mn4o5p6Q7R8s9t0u1Vw2XyZa3Bc4De5Fg6Hi7JkLmNo8']
@@ -333,7 +353,18 @@ supported_dbs:
           - [7, 'Marcus D. Cole', 'mcole@meridian-advisors.com', 'VP', '$2b$12$Yz5Bc6De7Fg8Hi9Jk0Lm1NpOqR3St4Uv5Wx6YzA']
           - [8, 'Elise B. Vance', 'evance@meridian-advisors.com', 'Paralegal', '$2b$12$Ac7De8Fg9Hi0JkLmNoPqRsTuVwXyZaBc5De6Fg1']
       deals:
-        columns: [id, client_id, counterparty_id, mandate_type, sector, stage, ebitda_millions, enterprise_value_millions, valuation_multiple, exclusivity_start, exclusivity_end]
+        columns:
+          - {name: id, type: INT}
+          - {name: client_id, type: INT}
+          - {name: counterparty_id, type: INT}
+          - {name: mandate_type, type: VARCHAR(10)}
+          - {name: sector, type: VARCHAR(30)}
+          - {name: stage, type: VARCHAR(20)}
+          - {name: ebitda_millions, type: "DECIMAL(10,2)"}
+          - {name: enterprise_value_millions, type: "DECIMAL(10,2)"}
+          - {name: valuation_multiple, type: "DECIMAL(4,1)"}
+          - {name: exclusivity_start, type: DATE}
+          - {name: exclusivity_end, type: DATE}
         rows:
           - [1, 1, null, 'Sell', 'Robotics', 'LOI', 45.00, 360.00, 8.0, '2025-01-10', '2025-07-10']
           - [2, 2, null, 'Buy', 'Transportation', 'Negotiation', 80.00, 320.00, 4.0, '2025-02-01', '2025-08-01']
@@ -366,7 +397,12 @@ supported_dbs:
           - [29, null, 29, 'Sell', 'Materials', 'LOI', 350.00, 1400.00, 4.0, '2025-08-15', '2026-02-15']
           - [30, null, 30, 'Buy', 'Logistics', 'Due Diligence', 18.00, 72.00, 4.0, '2025-09-01', '2026-03-01']
       due_diligence_items:
-        columns: [id, deal_id, category, severity, finding_description]
+        columns:
+          - {name: id, type: INT}
+          - {name: deal_id, type: INT}
+          - {name: category, type: VARCHAR(20)}
+          - {name: severity, type: VARCHAR(15)}
+          - {name: finding_description, type: TEXT}
         rows:
           - [1, 1, 'Operational', 'Critical', 'Actuator supplier is solely owned by a sanctioned entity in Region X.']
           - [2, 2, 'Financial', 'High', 'Revenue recognized from one major client (35% of total) shows signs of channel stuffing.']

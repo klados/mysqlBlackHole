@@ -107,11 +107,11 @@ func handleSelect(rdb *redis.Client, currentDB, query string) (*mysql.Result, er
 		return emptySelectResult()
 	}
 
-	rows := filterRows(data.Columns, data.Rows, sel.Where)
-	rows = orderRows(sel, data.Columns, rows)
+	rows := filterRows(columnNames(data.Columns), data.Rows, sel.Where)
+	rows = orderRows(sel, columnNames(data.Columns), rows)
 	rows = applyLimit(rows, sel.Limit)
 
-	outCols, outRows, err := projectRows(sel, data.Columns, rows)
+	outCols, outRows, err := projectRows(sel, columnNames(data.Columns), rows)
 	if err != nil {
 		return emptySelectResult()
 	}
@@ -135,6 +135,15 @@ func loadTableData(rdb *redis.Client, dbName, table string) (sqlemulate.TableDat
 		return sqlemulate.TableData{}, false, err
 	}
 	return data, true, nil
+}
+
+// columnNames reduces a column list to its names, preserving order.
+func columnNames(cols []sqlemulate.Column) []string {
+	out := make([]string, len(cols))
+	for i, c := range cols {
+		out[i] = c.Name
+	}
+	return out
 }
 
 // singleTableName unwraps the FROM clause of a select and returns the table

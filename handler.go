@@ -52,6 +52,10 @@ func (h *BlackHoleHandler) HandleQuery(query string) (*mysql.Result, error) {
 		return handleSelectDatabase(h.currentDB)
 	case strings.HasPrefix(upper, "SELECT") && strings.Contains(upper, "VERSION"):
 		return handleSelectVersion()
+	case strings.HasPrefix(upper, "USE "): // used when receive package COM_QUERY
+		return handleUse(h, query)
+	case strings.HasPrefix(upper, "DESCRIBE ") || strings.HasPrefix(upper, "DESC "):
+		return handleDescribe(h.redis, h.currentDB, query)
 	case strings.HasPrefix(upper, "SELECT"):
 		return handleSelect(h.redis, h.currentDB, query)
 	default:
