@@ -15,7 +15,7 @@ import (
 	"mysqlBlackHole/model/sqlemulate"
 )
 
-//go:embed config.yaml
+//go:embed seed_data.yaml
 var configFS embed.FS
 
 type Config struct {
@@ -148,7 +148,7 @@ func seedMySQLUsers(ctx context.Context, client *redis.Client, mysqlUsers []sqle
 }
 
 func loadConfig() (*Config, error) {
-	data, err := configFS.ReadFile("config.yaml")
+	data, err := configFS.ReadFile("seed_data.yaml")
 	if err != nil {
 		return nil, err
 	}

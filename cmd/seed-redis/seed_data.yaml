@@ -1,0 +1,406 @@
+supported_dbs:
+  - name: information_schema
+    users:
+      - root
+    tables:
+      - ADMINISTRABLE_ROLE_AUTHORIZATIONS
+      - APPLICABLE_ROLES
+      - CHARACTER_SETS
+      - CHECK_CONSTRAINTS
+      - COLLATIONS
+      - COLLATION_CHARACTER_SET_APPLICABILITY
+      - COLUMNS
+      - COLUMNS_EXTENSIONS
+      - COLUMN_PRIVILEGES
+      - COLUMN_STATISTICS
+      - ENABLED_ROLES
+      - ENGINES
+      - EVENTS
+      - FILES
+      - INNODB_BUFFER_PAGE
+      - INNODB_BUFFER_PAGE_LRU
+      - INNODB_BUFFER_POOL_STATS
+      - INNODB_CACHED_INDEXES
+      - INNODB_CMP
+      - INNODB_CMPMEM
+      - INNODB_CMPMEM_RESET
+      - INNODB_CMP_PER_INDEX
+      - INNODB_CMP_PER_INDEX_RESET
+      - INNODB_CMP_RESET
+      - INNODB_COLUMNS
+      - INNODB_DATAFILES
+      - INNODB_FIELDS
+      - INNODB_FOREIGN
+      - INNODB_FOREIGN_COLS
+      - INNODB_FT_BEING_DELETED
+      - INNODB_FT_CONFIG
+      - INNODB_FT_DEFAULT_STOPWORD
+      - INNODB_FT_DELETED
+      - INNODB_FT_INDEX_CACHE
+      - INNODB_FT_INDEX_TABLE
+      - INNODB_INDEXES
+      - INNODB_METRICS
+      - INNODB_SESSION_TEMP_TABLESPACES
+      - INNODB_TABLES
+      - INNODB_TABLESPACES
+      - INNODB_TABLESPACES_BRIEF
+      - INNODB_TABLESTATS
+      - INNODB_TEMP_TABLE_INFO
+      - INNODB_TRX
+      - INNODB_VIRTUAL
+      - JSON_DUALITY_VIEWS
+      - JSON_DUALITY_VIEW_COLUMNS
+      - JSON_DUALITY_VIEW_LINKS
+      - JSON_DUALITY_VIEW_TABLES
+      - KEYWORDS
+      - KEY_COLUMN_USAGE
+      - LIBRARIES
+      - OPTIMIZER_TRACE
+      - PARAMETERS
+      - PARTITIONS
+      - PLUGINS
+      - PROCESSLIST
+      - PROFILING
+      - REFERENTIAL_CONSTRAINTS
+      - RESOURCE_GROUPS
+      - ROLE_COLUMN_GRANTS
+      - ROLE_ROUTINE_GRANTS
+      - ROLE_TABLE_GRANTS
+      - ROUTINES
+      - ROUTINE_LIBRARIES
+      - SCHEMATA
+      - SCHEMATA_EXTENSIONS
+      - SCHEMA_PRIVILEGES
+      - STATISTICS
+      - ST_GEOMETRY_COLUMNS
+      - ST_SPATIAL_REFERENCE_SYSTEMS
+      - ST_UNITS_OF_MEASURE
+      - TABLES
+      - TABLESPACES_EXTENSIONS
+      - TABLES_EXTENSIONS
+      - TABLE_CONSTRAINTS
+      - TABLE_CONSTRAINTS_EXTENSIONS
+      - TABLE_PRIVILEGES
+      - TRIGGERS
+      - USER_ATTRIBUTES
+      - USER_PRIVILEGES
+      - VIEWS
+      - VIEW_ROUTINE_USAGE
+      - VIEW_TABLE_USAGE
+  - name: mysql
+    users:
+      - root
+    tables:
+      - columns_priv
+      - component
+      - db
+      - default_roles
+      - engine_cost
+      - func
+      - general_log
+      - global_grants
+      - gtid_executed
+      - help_category
+      - help_keyword
+      - help_relation
+      - help_topic
+      - innodb_index_stats
+      - innodb_table_stats
+      - ndb_binlog_index
+      - password_history
+      - plugin
+      - procs_priv
+      - proxies_priv
+      - replication_asynchronous_connection_failover
+      - replication_asynchronous_connection_failover_managed
+      - replication_group_configuration_version
+      - replication_group_member_actions
+      - role_edges
+      - server_cost
+      - servers
+      - slave_master_info
+      - slave_relay_log_info
+      - slave_worker_info
+      - slow_log
+      - tables_priv
+      - time_zone
+      - time_zone_leap_second
+      - time_zone_name
+      - time_zone_transition
+      - time_zone_transition_type
+      - user
+  - name: performance_schema
+    users:
+      - root
+    tables:
+      - accounts
+      - binary_log_transaction_compression_stats
+      - cond_instances
+      - data_lock_waits
+      - data_locks
+      - error_log
+      - events_errors_summary_by_account_by_error
+      - events_errors_summary_by_host_by_error
+      - events_errors_summary_by_thread_by_error
+      - events_errors_summary_by_user_by_error
+      - events_errors_summary_global_by_error
+      - events_stages_current
+      - events_stages_history
+      - events_stages_history_long
+      - events_stages_summary_by_account_by_event_name
+      - events_stages_summary_by_host_by_event_name
+      - events_stages_summary_by_thread_by_event_name
+      - events_stages_summary_by_user_by_event_name
+      - events_stages_summary_global_by_event_name
+      - events_statements_current
+      - events_statements_histogram_by_digest
+      - events_statements_histogram_global
+      - events_statements_history
+      - events_statements_history_long
+      - events_statements_summary_by_account_by_event_name
+      - events_statements_summary_by_digest
+      - events_statements_summary_by_host_by_event_name
+      - events_statements_summary_by_program
+      - events_statements_summary_by_thread_by_event_name
+      - events_statements_summary_by_user_by_event_name
+      - events_statements_summary_global_by_event_name
+      - events_transactions_current
+      - events_transactions_history
+      - events_transactions_history_long
+      - events_transactions_summary_by_account_by_event_name
+      - events_transactions_summary_by_host_by_event_name
+      - events_transactions_summary_by_thread_by_event_name
+      - events_transactions_summary_by_user_by_event_name
+      - events_transactions_summary_global_by_event_name
+      - events_waits_current
+      - events_waits_history
+      - events_waits_history_long
+      - events_waits_summary_by_account_by_event_name
+      - events_waits_summary_by_host_by_event_name
+      - events_waits_summary_by_instance
+      - events_waits_summary_by_thread_by_event_name
+      - events_waits_summary_by_user_by_event_name
+      - events_waits_summary_global_by_event_name
+      - file_instances
+      - file_summary_by_event_name
+      - file_summary_by_instance
+      - global_status
+      - global_variable_attributes
+      - global_variables
+      - host_cache
+      - hosts
+      - innodb_redo_log_files
+      - keyring_component_status
+      - keyring_keys
+      - log_status
+      - memory_summary_by_account_by_event_name
+      - memory_summary_by_host_by_event_name
+      - memory_summary_by_thread_by_event_name
+      - memory_summary_by_user_by_event_name
+      - memory_summary_global_by_event_name
+      - metadata_locks
+      - mutex_instances
+      - objects_summary_global_by_type
+      - performance_timers
+      - persisted_variables
+      - prepared_statements_instances
+      - processlist
+      - replication_applier_configuration
+      - replication_applier_filters
+      - replication_applier_global_filters
+      - replication_applier_status
+      - replication_applier_status_by_coordinator
+      - replication_applier_status_by_worker
+      - replication_asynchronous_connection_failover
+      - replication_asynchronous_connection_failover_managed
+      - replication_connection_configuration
+      - replication_connection_status
+      - replication_group_member_stats
+      - replication_group_members
+      - rwlock_instances
+      - session_account_connect_attrs
+      - session_connect_attrs
+      - session_status
+      - session_variables
+      - setup_actors
+      - setup_consumers
+      - setup_instruments
+      - setup_loggers
+      - setup_meters
+      - setup_metrics
+      - setup_objects
+      - setup_threads
+      - socket_instances
+      - socket_summary_by_event_name
+      - socket_summary_by_instance
+      - status_by_account
+      - status_by_host
+      - status_by_thread
+      - status_by_user
+      - table_handles
+      - table_io_waits_summary_by_index_usage
+      - table_io_waits_summary_by_table
+      - table_lock_waits_summary_by_table
+      - temporary_account_locks
+      - threads
+      - tls_channel_status
+      - user_defined_functions
+      - user_variables_by_thread
+      - users
+      - variables_by_thread
+      - variables_info
+      - variables_metadata
+  - name: prod_backup_Q1_2026
+    users:
+      - root
+      - app
+    tables:
+      - clients
+      - counterparties
+      - bankers
+      - deals
+      - due_diligence_items
+    table_data:
+      clients:
+        columns: [id, company_name, sector, principal_name, title, personal_email, direct_phone, status]
+        rows:
+          - [1, 'Aether Dynamics', 'Advanced Robotics', 'Dr. Elena Vance', 'CEO', 'evance@aether-dyn.com', '+1-617-555-8901', 'Mandated']
+          - [2, 'Blue Ridge Logistics', 'Transportation', 'Marcus Thorne', 'CFO', 'mthorne@br-logistics.com', '+1-303-555-4412', 'Exclusivity']
+          - [3, 'Cortex Biotech', 'Pharmaceuticals', "Sarah J. O'Connell", 'CEO', 'soc@greenleafpharma.com', '+1-617-555-2290', 'Targeted']
+          - [4, 'Dune Energy Systems', 'Renewables', 'Khalid Al-Fayed', 'Chairman', 'kfayed@dune-energy.io', '+1-202-555-1193', 'Negotiating']
+          - [5, 'Eagle Point Steel', 'Industrial Manufacturing', 'Robert H. Vance', 'COO', 'rvance@eaglesteel.com', '+1-412-555-6721', 'Sold']
+          - [6, 'Frost Data Centers', 'Infrastructure/Cloud', 'Linda Wu', 'CEO', 'lwu@frostdata.net', '+1-503-555-9945', 'Mandated']
+          - [7, 'Greenfield Agro', 'AgriTech', 'Jared K. Stone', 'Founder', 'jstone@greenfield.com', '+1-618-555-3321', 'Due Diligence']
+          - [8, 'Harbor FinTech', 'Financial Services', 'Alex P. Novak', 'CEO', 'anovak@harborfin.io', '+1-202-555-7764', 'Targeted']
+          - [9, 'Ironclad Security', 'Cybersecurity', 'Michael Chen', 'CFO', 'mchen@ironcladsec.com', '+1-415-555-8832', 'Exclusivity']
+          - [10, 'Jade Mining Corp', 'Resources', "Patricia O'Hara", 'Chairwoman', 'poahara@jade-mining.co', '+1-602-555-4491', 'Mandated']
+          - [11, 'Kestrel Healthcare', 'Medical Devices', 'Dr. Aris Thorne', 'CEO', 'athorne@kestrelmed.org', '+1-617-555-1288', 'Due Diligence']
+          - [12, 'Lumina Solar', 'Energy', 'Samantha Reed', 'CEO', 'sreed@luminasolar.com', '+1-310-555-9021', 'Sold']
+          - [13, 'Metro Rail Transit', 'Construction', 'David S. Miller', 'CFO', 'dmiller@metrorail.gov', '+1-646-555-4412', 'Targeted']
+          - [14, 'Nimbus Cloud Services', 'IT Services', 'Tommy G. Vance', 'Founder', 'tvance@nimbuscloud.io', '+1-503-555-7729', 'Exclusivity']
+          - [15, 'Onyx Defense Systems', 'Aerospace', 'Colonel R. Steele (Ret.)', 'CEO', 'rsteele@onyx-def.com', '+1-703-555-1192', 'Mandated']
+          - [16, 'Pacific Logistics', 'Freight', 'Elena Rodriguez', 'CFO', 'erodriguez@pacificlog.com', '+1-305-555-6641', 'Due Diligence']
+          - [17, 'Quantum Chips', 'Semiconductors', 'Wei Zhang', 'CTO', 'wzhang@quantumchips.cn', '+1-408-555-9932', 'Targeted']
+          - [18, 'Silver Oak Winery', 'Consumer Goods', 'Jonathan P. Baker', 'CEO', 'jbaker@silveroak.com', '+1-707-555-2210', 'Sold']
+          - [19, 'Titan Construction', 'Real Estate', 'Michael K. Ross', 'Founder', 'mross@titan-build.com', '+1-312-555-8845', 'Mandated']
+          - [20, 'Unity Pharma Research', 'Biotech', 'Dr. Emily White', 'CEO', 'ewhite@unitypharma.com', '+1-617-555-3391', 'Exclusivity']
+          - [21, 'Vanguard Auto Parts', 'Automotive', 'Frank L. Rossi', 'CFO', 'frossi@vanguardap.com', '+1-313-555-1182', 'Due Diligence']
+          - [22, 'West Coast Shipping', 'Logistics', 'James H. King', 'CEO', 'jking@wccoastship.com', '+1-206-555-7729', 'Targeted']
+          - [23, 'Xenon Labs', 'Chemicals', 'Dr. Hans Muller', 'Scientist/Owner', 'hmuller@xenonlabs.com', '+1-610-555-4482', 'Mandated']
+          - [24, 'Yellowstone Oil & Gas', 'Energy', 'Gary L. Sneed', 'CEO', 'gsneed@yellowstoneoil.com', '+1-307-555-9910', 'Sold']
+      counterparties:
+        columns: [id, company_name, sector, hq_location, ownership_type, revenue_range_millions, weakness_flag]
+        rows:
+          - [1, 'Aether Dynamics', 'Robotics', 'Boston, MA', 'Private Founder-Led', '$30-60M', 'Critical dependency on single foreign supplier for actuators']
+          - [2, 'Blue Ridge Logistics', 'Transportation', 'Denver, CO', 'Holding Company Subsidiary', '$50-100M', 'Union contract renegotiation scheduled in Q4']
+          - [3, 'Cortex Biotech', 'Biotech', 'Cambridge, MA', 'Venture Capital Backed', '$20-40M', 'Pending FDA audit on main manufacturing facility']
+          - [4, 'Dune Energy Systems', 'Renewables', 'Dubai/UAE', 'Sovereign Wealth Fund', '$150-300M', 'Regulatory scrutiny in current market regarding land use']
+          - [5, 'Eagle Point Steel', 'Manufacturing', 'Pittsburgh, PA', 'Private Equity Owned', '$200-400M', 'Key-man risk: Founder retirement imminent']
+          - [6, 'Frost Data Centers', 'Infra/Cloud', 'San Jose, CA', 'Public Company (Small Cap)', '$100-200M', 'Excess capacity at primary facility creates valuation discount']
+          - [7, 'Greenfield Agro', 'AgriTech', 'Chicago, IL', 'Family Office Owned', '$40-60M', 'Litigation risk regarding water rights usage']
+          - [8, 'Harbor FinTech', 'FinTech', 'New York, NY', 'Venture Capital Backed', '$50-70M', 'Regulatory license expiring in 90 days']
+          - [9, 'Ironclad Security', 'Cybersecurity', 'Arlington, VA', 'Private Equity Owned', '$80-120M', 'Proprietary algorithm key is held by two departing engineers']
+          - [10, 'Jade Mining Corp', 'Resources', 'Perth, WA', 'Public Company (ASX)', '$500M+', 'Major environmental protest blocking site access']
+          - [11, 'Kestrel Healthcare', 'MedTech', 'Minneapolis, MN', 'Venture Capital Backed', '$30-50M', 'Patent litigation challenge on core device mechanism']
+          - [12, 'Lumina Solar', 'Energy', 'Austin, TX', 'Public Company (Mid Cap)', '$300-500M', 'Heavy debt maturity wall in 2026']
+          - [13, 'Metro Rail Transit', 'Construction', 'New York, NY', 'Municipal Entity', '$1B+', 'Political opposition to privatization plans']
+          - [14, 'Nimbus Cloud Services', 'IT Services', 'Portland, OR', 'Angel Group Owned', '$20-30M', 'Client concentration: 60% revenue from one government agency']
+          - [15, 'Onyx Defense Systems', 'Defense', 'Arlington, VA', 'Private Founder-Led', '$150-200M', 'Security clearance loss for 3 key executives']
+          - [16, 'Pacific Logistics', 'Freight', 'Long Beach, CA', 'Public Company (Small Cap)', '$200-300M', 'Fleet age exceeds average; capital expenditure needed immediately']
+          - [17, 'Quantum Chips', 'Semiconductors', 'San Jose, CA', 'Private VC Backed', '$40-60M', 'Technology viability questioned by independent lab report']
+          - [18, 'Silver Oak Winery', 'Consumer Goods', 'Napa Valley, CA', 'Family Trust Owned', '$20-30M', 'Rebranding efforts failing to move inventory']
+          - [19, 'Titan Construction', 'Real Estate', 'Chicago, IL', 'Private Founder-Led', '$500M+', 'Key executive indicted on fraud charges (undisclosed)']
+          - [20, 'Unity Pharma Research', 'Pharma', 'New Haven, CT', 'Venture Capital Backed', '$60-80M', 'Phase 3 trial results pending; binary outcome risk']
+          - [21, 'Vanguard Auto Parts', 'Auto Industry', 'Detroit, MI', 'PE Owned', '$400-500M', 'Labor strike threat imminent at main plant']
+          - [22, 'West Coast Shipping', 'Logistics', 'Seattle, WA', 'Public Company (Small Cap)', '$150-250M', 'Major fuel hedging strategy loss in current quarter']
+          - [23, 'Xenon Labs', 'Chemicals', 'Pittsburgh, PA', 'Family Trust Owned', '$15-20M', 'Waste disposal compliance violation found in audit']
+          - [24, 'Yellowstone Oil & Gas', 'Energy', 'Cheyenne, WY', 'Private Equity Owned', '$2B+', 'Reserves depleting faster than projected models']
+          - [25, 'Zircon Defense Materials', 'Defense', 'San Diego, CA', 'Public Company (Mid Cap)', '$800M-', 'Government contract non-renewal risk']
+          - [26, 'Apex Logistics Hub', 'Freight', 'Memphis, TN', 'Private Equity Owned', '$300-400M', 'Dependent on a single anchor tenant for warehousing']
+          - [27, 'BioNova Genetics', 'Biotech', 'San Francisco, CA', 'VC Backed', '$50-70M', 'IP dispute with competitor over gene-editing tool']
+          - [28, 'ClearSky Networks', 'Telecom', 'Austin, TX', 'Private Founder-Led', '$100-200M', 'Spectrum license renewal pending in critical markets']
+          - [29, 'Delta Steel Works', 'Materials', 'Gary, IN', 'Public Company (Small Cap)', '$400-500M', 'Environmental liability hidden in shell subsidiary']
+          - [30, 'Eco-Freight Systems', 'Logistics', 'Atlanta, GA', 'Green Fund Backed', '$30-40M', 'Management team lacks experience in scale-up phase']
+      bankers:
+        columns: [id, full_name, email, role, password_hash]
+        rows:
+          - [1, 'Arthur Sterling', 'asterling@meridian-advisors.com', 'Managing Director', '$2b$12$LJ3m4iv5o6p7q8r9s0t1uVwXyZaBcDeFgHiJkLmNoPqRsTu']
+          - [2, 'Victoria Chase', 'vchase@meridian-advisors.com', 'Associate', '$2b$12$Mn4o5p6Q7R8s9t0u1Vw2XyZa3Bc4De5Fg6Hi7JkLmNo8']
+          - [3, 'Jonathan P. Wright', 'jwright@meridian-advisors.com', 'Senior Analyst', '$2b$12$Op6Q7R8s9T0u1Vw2Xy3Za4Bc5De6Fg7Hi8JkLmNoPq']
+          - [4, 'Samantha K. Lee', 'slee@meridian-advisors.com', 'Analyst', '$2b$12$Rs9T0u1Vw2Xy3Za4Bc5De6Fg7Hi8JkLmNoPqRsTu0']
+          - [5, 'Richard Hayes', 'rhayes@meridian-advisors.com', 'Associate', '$2b$12$Tu2Xy3Za4Bc5De6Fg7Hi8JkLmNoPqRsTuVwXyZa1']
+          - [6, 'Priya N. Gupta', 'pgupta@meridian-advisors.com', 'Financial Analyst', '$2b$12$Wx3Za4Bc5De6Fg7Hi8JkLmNoPqRsTuVwXyZaBc2']
+          - [7, 'Marcus D. Cole', 'mcole@meridian-advisors.com', 'VP', '$2b$12$Yz5Bc6De7Fg8Hi9Jk0Lm1NpOqR3St4Uv5Wx6YzA']
+          - [8, 'Elise B. Vance', 'evance@meridian-advisors.com', 'Paralegal', '$2b$12$Ac7De8Fg9Hi0JkLmNoPqRsTuVwXyZaBc5De6Fg1']
+      deals:
+        columns: [id, client_id, counterparty_id, mandate_type, sector, stage, ebitda_millions, enterprise_value_millions, valuation_multiple, exclusivity_start, exclusivity_end]
+        rows:
+          - [1, 1, null, 'Sell', 'Robotics', 'LOI', 45.00, 360.00, 8.0, '2025-01-10', '2025-07-10']
+          - [2, 2, null, 'Buy', 'Transportation', 'Negotiation', 80.00, 320.00, 4.0, '2025-02-01', '2025-08-01']
+          - [3, 3, null, 'Sell', 'Pharma', 'Due Diligence', 22.50, 90.00, 4.0, '2025-03-05', '2025-09-05']
+          - [4, 4, null, 'Sell', 'Energy', 'Closed', 180.00, 1260.00, 7.0, '2024-06-01', '2024-12-01']
+          - [5, 5, null, 'Buy', 'Manufacturing', 'LOI', 150.00, 900.00, 6.0, '2025-01-15', '2025-07-15']
+          - [6, 6, null, 'Sell', 'Infra/Cloud', 'Negotiation', 95.00, 380.00, 4.0, '2025-02-20', '2025-08-20']
+          - [7, 7, null, 'Sell', 'AgriTech', 'Due Diligence', 18.00, 54.00, 3.0, '2025-04-01', '2025-10-01']
+          - [8, 8, null, 'Sell', 'FinTech', 'Targeted', 65.00, 390.00, 6.0, '2025-05-10', '2025-11-10']
+          - [9, 9, null, 'Buy', 'Cybersecurity', 'Negotiation', 40.00, 320.00, 8.0, '2025-02-15', '2025-08-15']
+          - [10, 10, null, 'Sell', 'Resources', 'LOI', 450.00, 1800.00, 4.0, '2025-03-01', '2025-09-01']
+          - [11, 11, null, 'Sell', 'MedTech', 'Due Diligence', 28.00, 140.00, 5.0, '2025-06-15', '2025-12-15']
+          - [12, 12, null, 'Sell', 'Energy', 'Closed', 35.00, 175.00, 5.0, '2024-08-01', '2024-12-01']
+          - [13, 13, null, 'Buy', 'Construction', 'Targeted', 250.00, 750.00, 3.0, '2025-07-01', '2025-12-31']
+          - [14, 14, null, 'Sell', 'IT Services', 'Negotiation', 15.00, 60.00, 4.0, '2025-04-10', '2025-10-10']
+          - [15, 15, null, 'Sell', 'Defense', 'LOI', 85.00, 765.00, 9.0, '2025-03-20', '2025-09-20']
+          - [16, 16, null, 'Buy', 'Freight', 'Due Diligence', 180.00, 630.00, 3.5, '2025-05-01', '2025-11-01']
+          - [17, 17, null, 'Sell', 'Semiconductors', 'Targeted', 45.00, 360.00, 8.0, '2025-08-01', '2025-02-01']
+          - [18, 18, null, 'Sell', 'Consumer Goods', 'Closed', 12.00, 60.00, 5.0, '2024-09-01', '2024-11-01']
+          - [19, 19, null, 'Buy', 'Real Estate', 'Negotiation', 350.00, 1750.00, 5.0, '2025-04-15', '2025-10-15']
+          - [20, 20, null, 'Sell', 'Biotech', 'Due Diligence', 60.00, 360.00, 6.0, '2025-06-01', '2025-12-01']
+          - [21, 21, null, 'Buy', 'Auto Industry', 'Targeted', 220.00, 880.00, 4.0, '2025-09-01', '2026-03-01']
+          - [22, 22, null, 'Sell', 'Logistics', 'LOI', 120.00, 480.00, 4.0, '2025-07-15', '2025-12-15']
+          - [23, 23, null, 'Sell', 'Chemicals', 'Due Diligence', 8.00, 32.00, 4.0, '2025-08-10', '2026-02-10']
+          - [24, 24, null, 'Sell', 'Energy', 'Closed', 1200.00, 4800.00, 4.0, '2024-10-01', '2025-01-01']
+          - [25, null, 25, 'Buy', 'Defense', 'LOI', 80.00, 640.00, 8.0, '2025-03-10', '2025-09-10']
+          - [26, null, 26, 'Sell', 'Freight', 'Negotiation', 40.00, 160.00, 4.0, '2025-05-20', '2025-11-20']
+          - [27, null, 27, 'Sell', 'Biotech', 'Due Diligence', 35.00, 210.00, 6.0, '2025-06-25', '2025-12-25']
+          - [28, null, 28, 'Buy', 'Telecom', 'Targeted', 90.00, 450.00, 5.0, '2025-07-05', '2026-01-05']
+          - [29, null, 29, 'Sell', 'Materials', 'LOI', 350.00, 1400.00, 4.0, '2025-08-15', '2026-02-15']
+          - [30, null, 30, 'Buy', 'Logistics', 'Due Diligence', 18.00, 72.00, 4.0, '2025-09-01', '2026-03-01']
+      due_diligence_items:
+        columns: [id, deal_id, category, severity, finding_description]
+        rows:
+          - [1, 1, 'Operational', 'Critical', 'Actuator supplier is solely owned by a sanctioned entity in Region X.']
+          - [2, 2, 'Financial', 'High', 'Revenue recognized from one major client (35% of total) shows signs of channel stuffing.']
+          - [3, 3, 'Legal', 'Critical', 'Primary patent application contains prior art that may invalidate core IP portfolio.']
+          - [4, 4, 'Reputational', 'Medium', 'CEO has undisclosed ties to a political donor who is currently lobbying against the industry.']
+          - [5, 5, 'Operational', 'High', 'Factory floor efficiency is down 15% due to undocumented machinery maintenance gaps.']
+          - [6, 6, 'Financial', 'Critical', 'Unrecorded liability of $20M identified in cross-border tax shell subsidiary.']
+          - [7, 7, 'Legal', 'High', 'Water rights contracts contain a breach clause that triggers immediately upon change of control.']
+          - [8, 8, 'Reputational', 'Medium', 'Data privacy incident from 2 years ago was settled quietly; not in standard disclosures.']
+          - [9, 9, 'Operational', 'High', 'Core algorithm relies on cloud infrastructure that is being sunset by the provider in Q4.']
+          - [10, 10, 'Financial', 'Critical', 'Mineral rights leases expire in 6 months without renewal options; reserves may be worthless.']
+          - [11, 11, 'Legal', 'Medium', 'Pending class action lawsuit from former employees regarding non-compete enforcement.']
+          - [12, 12, 'Reputational', 'High', 'Facility located in a zone facing imminent condemnation for environmental remediation.']
+          - [13, 13, 'Financial', 'Critical', 'Key contract contains a "change of control" clause that allows buyer to terminate immediately.']
+          - [14, 14, 'Operational', 'Medium', 'Top 3 developers have filed resignation letters pending counter-offer.']
+          - [15, 15, 'Legal', 'High', 'Export control license for key product is under audit by BIS; loss would halt 80% of revenue.']
+          - [16, 16, 'Financial', 'Medium', 'Fuel hedging derivatives position is marked-to-market at a $10M unrealized loss.']
+          - [17, 17, 'Operational', 'Critical', 'Fabrication yields are below 50%, significantly lower than the 85% claimed in pitch deck.']
+          - [18, 18, 'Reputational', 'Low', 'Minor tax lien filed by state for unpaid franchise fees; easily remediable.']
+          - [19, 19, 'Legal', 'Critical', 'Founder is under SEC investigation for securities fraud; deal cannot close without resolution.']
+          - [20, 20, 'Financial', 'High', 'Clinical trial phase results were manipulated to improve success probability estimates.']
+          - [21, 21, 'Operational', 'High', 'Supply chain relies on a single foundry that is currently operating at 110% capacity.']
+          - [22, 22, 'Financial', 'Medium', 'Accounts Receivable aging analysis shows significant uncollectible balances (>90 days).']
+          - [23, 23, 'Reputational', 'High', 'Waste dumping scandal leaked to local press; CEO refuses to comment publicly.']
+          - [24, 24, 'Legal', 'Critical', 'Government contract is subject to termination for convenience clause with only 60 days notice.']
+          - [25, 25, 'Financial', 'High', 'Off-balance-sheet joint venture shows $50M in unreported debt.']
+          - [26, 26, 'Operational', 'Medium', 'Warehouse automation software license expires next month and is non-transferable.']
+          - [27, 27, 'Legal', 'Critical', 'Co-developer claims ownership of 40% of the IP; will sue upon acquisition.']
+          - [28, 28, 'Financial', 'High', 'Spectrum licenses have been delisted in two key states; renewal costs triple what budgeted.']
+          - [29, 29, 'Operational', 'Medium', 'Environmental impact study reveals underground storage tanks are corroding.']
+          - [30, 30, 'Reputational', 'High', 'Green fund investors have withdrawn commitment citing ESG violations at target site.']
+
+mysql_users:
+  - username: root
+    password: s3cret
+  - username: app
+    password: 123456
