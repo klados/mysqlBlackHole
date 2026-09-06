@@ -61,6 +61,12 @@ func seedSupportedDBs(ctx context.Context, client *redis.Client, allowedDBs []sq
 	if err := client.Del(ctx, sqlemulate.KeySupportedDBs).Err(); err != nil {
 		return err
 	}
+	if err := deleteKeysByPattern(ctx, client, sqlemulate.KeySupportedDBs+":"); err != nil {
+		return err
+	}
+	if err := deleteKeysByPattern(ctx, client, "table_data:*"); err != nil {
+		return err
+	}
 
 	dbNames := make([]any, 0, len(allowedDBs))
 	for _, db := range allowedDBs {
@@ -73,10 +79,6 @@ func seedSupportedDBs(ctx context.Context, client *redis.Client, allowedDBs []sq
 	for _, db := range allowedDBs {
 		usersKey := sqlemulate.GetSupportedDBUsersKey(db.Name)
 		tablesKey := sqlemulate.GetAllowedDBTablesKey(db.Name)
-
-		if err := client.Del(ctx, usersKey, tablesKey).Err(); err != nil {
-			return err
-		}
 
 		if len(db.Users) > 0 {
 			if err := client.SAdd(ctx, usersKey, stringSliceToAny(db.Users)...).Err(); err != nil {
@@ -99,10 +101,6 @@ func seedSupportedDBs(ctx context.Context, client *redis.Client, allowedDBs []sq
 }
 
 func seedTableData(ctx context.Context, client *redis.Client, dbName string, tableData map[string]sqlemulate.TableData) error {
-	if err := deleteTableDataKeys(ctx, client, dbName); err != nil {
-		return err
-	}
-
 	for table, data := range tableData {
 		if len(data.Columns) == 0 {
 			continue
@@ -121,8 +119,7 @@ func seedTableData(ctx context.Context, client *redis.Client, dbName string, tab
 	return nil
 }
 
-func deleteTableDataKeys(ctx context.Context, client *redis.Client, dbName string) error {
-	pattern := sqlemulate.GetTableDataKey(dbName, "*")
+func deleteKeysByPattern(ctx context.Context, client *redis.Client, pattern string) error {
 	iter := client.Scan(ctx, 0, pattern, 100).Iterator()
 	for iter.Next(ctx) {
 		if err := client.Del(ctx, iter.Val()).Err(); err != nil {
