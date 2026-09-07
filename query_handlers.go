@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/go-mysql-org/go-mysql/mysql"
+	"github.com/pingcap/tidb/pkg/parser/ast"
 	"github.com/redis/go-redis/v9"
 
 	"mysqlBlackHole/model/sqlemulate"
@@ -108,4 +109,51 @@ func handleSelectVersion() (*mysql.Result, error) {
 		[]string{"version()"},
 		[][]any{{"26.7.0 MySQL Community Server - GPL"}},
 	)
+}
+
+// handleCreateDatabase answers CREATE DATABASE/CREATE SCHEMA. This black hole
+// server never persists a database, so the statement always fails with an
+// access-denied error, mirroring MySQL. The TiDB parser extracts the target
+// database name so IF NOT EXISTS and charset/collation options are handled
+// without affecting the denied name.
+func handleCreateDatabase(h *BlackHoleHandler, query string) (*mysql.Result, error) {
+	dbName := ""
+
+	selectParserMu.Lock()
+	stmt, err := getSelectParser().ParseOneStmt(query, "", "")
+	selectParserMu.Unlock()
+	if err == nil {
+		if create, ok := stmt.(*ast.CreateDatabaseStmt); ok {
+			dbName = create.Name.O
+		}
+	}
+
+	return nil, fmt.Errorf("Access denied for user '%s'@'%%' to database '%s'", h.username, dbName)
+}
+
+// handleCreateTable answers CREATE TABLE/CREATE TEMPORARY TABLE. This black
+// hole server never persists a table, so the statement always fails with an
+// access-denied error, mirroring MySQL. If no database is selected it returns
+// MySQL's "No database selected" error instead. The TiDB parser extracts the
+// target database and table name so IF NOT EXISTS, a db.table qualification,
+// column definitions and table options are handled without being persisted.
+func handleCreateTable(h *BlackHoleHandler, query string) (*mysql.Result, error) {
+	if h.currentDB == "" {
+		return nil, fmt.Errorf("No database selected")
+	}
+
+	dbName := h.currentDB
+
+	selectParserMu.Lock()
+	stmt, err := getSelectParser().ParseOneStmt(query, "", "")
+	selectParserMu.Unlock()
+	if err == nil {
+		if create, ok := stmt.(*ast.CreateTableStmt); ok && create.Table != nil {
+			if create.Table.Schema.L != "" {
+				dbName = create.Table.Schema.L
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("Access denied for user '%s'@'%%' to database '%s'", h.username, dbName)
 }
