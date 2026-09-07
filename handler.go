@@ -62,6 +62,10 @@ func (h *BlackHoleHandler) HandleQuery(query string) (*mysql.Result, error) {
 		return handleCreateDatabase(h, query)
 	case strings.HasPrefix(upper, "CREATE TEMPORARY TABLE") || strings.HasPrefix(upper, "CREATE TABLE"):
 		return handleCreateTable(h, query)
+	case strings.HasPrefix(upper, "DROP DATABASE") || strings.HasPrefix(upper, "DROP SCHEMA"):
+		return handleDropDatabase(h, query)
+	case strings.HasPrefix(upper, "DROP TEMPORARY TABLE") || strings.HasPrefix(upper, "DROP TABLE"):
+		return handleDropTable(h, query)
 	default:
 		return mysql.NewResult(nil), nil
 	}

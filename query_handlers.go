@@ -131,12 +131,56 @@ func handleCreateDatabase(h *BlackHoleHandler, query string) (*mysql.Result, err
 	return nil, fmt.Errorf("Access denied for user '%s'@'%%' to database '%s'", h.username, dbName)
 }
 
-// handleCreateTable answers CREATE TABLE/CREATE TEMPORARY TABLE. This black
-// hole server never persists a table, so the statement always fails with an
-// access-denied error, mirroring MySQL. If no database is selected it returns
-// MySQL's "No database selected" error instead. The TiDB parser extracts the
-// target database and table name so IF NOT EXISTS, a db.table qualification,
-// column definitions and table options are handled without being persisted.
+// handleDropDatabase answers DROP DATABASE/DROP SCHEMA. This black hole server
+// never removes a database, so the statement always fails with an
+// access-denied error, mirroring MySQL. The TiDB parser extracts the target
+// database name so IF EXISTS is handled without affecting the denied name.
+func handleDropDatabase(h *BlackHoleHandler, query string) (*mysql.Result, error) {
+	dbName := ""
+
+	selectParserMu.Lock()
+	stmt, err := getSelectParser().ParseOneStmt(query, "", "")
+	selectParserMu.Unlock()
+	if err == nil {
+		if drop, ok := stmt.(*ast.DropDatabaseStmt); ok {
+			dbName = drop.Name.O
+		}
+	}
+
+	return nil, fmt.Errorf("Access denied for user '%s'@'%%' to database '%s'", h.username, dbName)
+}
+
+// handleDropTable answers DROP TABLE/DROP TEMPORARY TABLE. This black hole
+// server never removes a table, so the statement always fails with an
+// access-denied error, mirroring MySQL. If the table name has no dbschema
+// qualification and no database is selected it returns MySQL's "No database
+// selected" error instead. The TiDB parser extracts the target database (from
+// a db.table qualification, falling back to the selected database) so IF EXISTS
+// and TEMPORARY are handled without being persisted.
+func handleDropTable(h *BlackHoleHandler, query string) (*mysql.Result, error) {
+	explicitDB := ""
+	dbName := h.currentDB
+
+	selectParserMu.Lock()
+	stmt, err := getSelectParser().ParseOneStmt(query, "", "")
+	selectParserMu.Unlock()
+	if err == nil {
+		if drop, ok := stmt.(*ast.DropTableStmt); ok && len(drop.Tables) > 0 {
+			if s := drop.Tables[0].Schema.L; s != "" {
+				explicitDB = s
+			}
+		}
+	}
+
+	if explicitDB == "" && dbName == "" {
+		return nil, fmt.Errorf("No database selected")
+	}
+	if explicitDB != "" {
+		dbName = explicitDB
+	}
+
+	return nil, fmt.Errorf("Access denied for user '%s'@'%%' to database '%s'", h.username, dbName)
+}
 func handleCreateTable(h *BlackHoleHandler, query string) (*mysql.Result, error) {
 	if h.currentDB == "" {
 		return nil, fmt.Errorf("No database selected")
