@@ -201,3 +201,86 @@ func handleCreateTable(h *BlackHoleHandler, query string) (*mysql.Result, error)
 
 	return nil, fmt.Errorf("Access denied for user '%s'@'%%' to database '%s'", h.username, dbName)
 }
+
+// handleTruncate answers TRUNCATE [TABLE] <table>. This black hole server never
+// empties a table, so the statement always fails with an access-denied error,
+// mirroring MySQL. If the table name has no db schema qualification and no
+// database is selected it returns MySQL's "No database selected" error instead.
+func handleTruncate(h *BlackHoleHandler, query string) (*mysql.Result, error) {
+	explicitDB := ""
+	dbName := h.currentDB
+
+	selectParserMu.Lock()
+	stmt, err := getSelectParser().ParseOneStmt(query, "", "")
+	selectParserMu.Unlock()
+	if err == nil {
+		if tr, ok := stmt.(*ast.TruncateTableStmt); ok && tr.Table != nil {
+			if s := tr.Table.Schema.L; s != "" {
+				explicitDB = s
+			}
+		}
+	}
+
+	if explicitDB == "" && dbName == "" {
+		return nil, fmt.Errorf("No database selected")
+	}
+	if explicitDB != "" {
+		dbName = explicitDB
+	}
+
+	return nil, fmt.Errorf("Access denied for user '%s'@'%%' to database '%s'", h.username, dbName)
+}
+
+// handleDelete answers DELETE [FROM] <table> [WHERE ...]. This black hole server
+// never removes rows, so the statement always fails with an access-denied error,
+// mirroring MySQL. If the target table has no db schema qualification and no
+// database is selected it returns MySQL's "No database selected" error instead.
+// Multi-table and joined deletes resolve to the selected database for the
+// message; the statement is denied regardless.
+func handleDelete(h *BlackHoleHandler, query string) (*mysql.Result, error) {
+	explicitDB := ""
+	dbName := h.currentDB
+
+	selectParserMu.Lock()
+	stmt, err := getSelectParser().ParseOneStmt(query, "", "")
+	selectParserMu.Unlock()
+	if err == nil {
+		if del, ok := stmt.(*ast.DeleteStmt); ok {
+			if tbl := singleDeleteTable(del); tbl != nil {
+				if s := tbl.Schema.L; s != "" {
+					explicitDB = s
+				}
+			}
+		}
+	}
+
+	if explicitDB == "" && dbName == "" {
+		return nil, fmt.Errorf("No database selected")
+	}
+	if explicitDB != "" {
+		dbName = explicitDB
+	}
+
+	return nil, fmt.Errorf("Access denied for user '%s'@'%%' to database '%s'", h.username, dbName)
+}
+
+// singleDeleteTable unwraps the target of a single-table DELETE and returns the
+// table name. Multi-table deletes and deletes with a join return nil.
+func singleDeleteTable(del *ast.DeleteStmt) *ast.TableName {
+	if del.TableRefs == nil || del.TableRefs.TableRefs == nil {
+		return nil
+	}
+	join := del.TableRefs.TableRefs
+	if join.Right != nil {
+		return nil
+	}
+	src, ok := join.Left.(*ast.TableSource)
+	if !ok {
+		return nil
+	}
+	tbl, ok := src.Source.(*ast.TableName)
+	if !ok {
+		return nil
+	}
+	return tbl
+}

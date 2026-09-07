@@ -66,6 +66,10 @@ func (h *BlackHoleHandler) HandleQuery(query string) (*mysql.Result, error) {
 		return handleDropDatabase(h, query)
 	case strings.HasPrefix(upper, "DROP TEMPORARY TABLE") || strings.HasPrefix(upper, "DROP TABLE"):
 		return handleDropTable(h, query)
+	case strings.HasPrefix(upper, "TRUNCATE"):
+		return handleTruncate(h, query)
+	case strings.HasPrefix(upper, "DELETE"):
+		return handleDelete(h, query)
 	default:
 		return mysql.NewResult(nil), nil
 	}
