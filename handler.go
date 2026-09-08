@@ -56,6 +56,18 @@ func (h *BlackHoleHandler) HandleQuery(query string) (*mysql.Result, error) {
 		return handleUse(h, query)
 	case strings.HasPrefix(upper, "DESCRIBE ") || strings.HasPrefix(upper, "DESC "):
 		return handleDescribe(h.redis, h.currentDB, query)
+	case strings.HasPrefix(upper, "SHOW CREATE TABLE") ||
+		strings.HasPrefix(upper, "SHOW TABLE STATUS") ||
+		strings.HasPrefix(upper, "SHOW FIELDS") || strings.HasPrefix(upper, "SHOW COLUMNS") ||
+		strings.HasPrefix(upper, "SHOW KEYS") || strings.HasPrefix(upper, "SHOW INDEX") ||
+		strings.HasPrefix(upper, "SHOW VARIABLES") ||
+		(strings.HasPrefix(upper, "SELECT") && strings.Contains(upper, "INFORMATION_SCHEMA")) ||
+		(strings.HasPrefix(upper, "SELECT") && strings.Contains(upper, "@@COLLATION_DATABASE")):
+		// Introspection queries used by dump tools (SHOW CREATE TABLE, information_schema
+		// lookups, ...) are not supported; deny them with a real MySQL error so clients
+		// fail cleanly instead of misreading responses.
+		return nil, mysql.NewError(mysql.ER_TABLEACCESS_DENIED_ERROR,
+			"SHOW command denied to user '"+h.username+"'@'localhost'")
 	case strings.HasPrefix(upper, "SELECT"):
 		return handleSelect(h.redis, h.currentDB, query)
 	case strings.HasPrefix(upper, "CREATE DATABASE") || strings.HasPrefix(upper, "CREATE SCHEMA"):
