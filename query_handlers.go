@@ -46,12 +46,29 @@ func handleShowDatabases(rdb *redis.Client, username string) (*mysql.Result, err
 	return buildResult([]string{"Database"}, rows)
 }
 
-// handleShowTables answers SHOW TABLES for the currently selected database.
-// It returns an error if no database is selected or the database has no tables.
-func handleShowTables(rdb *redis.Client, dbName string) (*mysql.Result, error) {
+// handleShowTables answers SHOW TABLES for the currently selected database, or
+// the database named by SHOW TABLES FROM/IN <db> when given. It returns an
+// error if no database is determined or the user is not allowed to access it.
+func handleShowTables(rdb *redis.Client, dbName, username, query string) (*mysql.Result, error) {
+	selectParserMu.Lock()
+	stmt, err := getSelectParser().ParseOneStmt(query, "", "")
+	selectParserMu.Unlock()
+	if err == nil {
+		if show, ok := stmt.(*ast.ShowStmt); ok && show.DBName != "" {
+			dbName = show.DBName
+		}
+	}
 
 	if dbName == "" {
 		return nil, fmt.Errorf("No database selected")
+	}
+
+	allowed, err := rdb.SIsMember(context.Background(), sqlemulate.GetSupportedDBUsersKey(dbName), username).Result()
+	if err != nil {
+		return nil, err
+	}
+	if !allowed {
+		return nil, fmt.Errorf("Access denied for user '%s' to database '%s'", username, dbName)
 	}
 
 	tables, err := rdb.SMembers(context.Background(), fmt.Sprintf("%s:%s:tables", sqlemulate.KeySupportedDBs, dbName)).Result()
@@ -264,13 +281,166 @@ func handleDelete(h *BlackHoleHandler, query string) (*mysql.Result, error) {
 	return nil, fmt.Errorf("Access denied for user '%s'@'%%' to database '%s'", h.username, dbName)
 }
 
+// handleInsert answers INSERT [INTO] <table> ... and REPLACE [INTO] <table> ...
+// This black hole server never persists rows, so the statement always fails
+// with an access-denied error, mirroring MySQL. If the target table has no db
+// schema qualification and no database is selected it returns MySQL's "No
+// database selected" error instead.
+func handleInsert(h *BlackHoleHandler, query string) (*mysql.Result, error) {
+	explicitDB := ""
+	dbName := h.currentDB
+
+	selectParserMu.Lock()
+	stmt, err := getSelectParser().ParseOneStmt(query, "", "")
+	selectParserMu.Unlock()
+	if err == nil {
+		if ins, ok := stmt.(*ast.InsertStmt); ok {
+			if tbl := singleTableFromRefs(ins.Table); tbl != nil {
+				if s := tbl.Schema.L; s != "" {
+					explicitDB = s
+				}
+			}
+		}
+	}
+
+	return denyForDB(h, explicitDB, dbName)
+}
+
+// handleUpdate answers UPDATE <table> SET ... This black hole server never
+// modifies rows, so the statement always fails with an access-denied error,
+// mirroring MySQL. If the target table has no db schema qualification and no
+// database is selected it returns MySQL's "No database selected" error instead.
+// Multi-table and joined updates resolve to the selected database for the
+// message; the statement is denied regardless.
+func handleUpdate(h *BlackHoleHandler, query string) (*mysql.Result, error) {
+	explicitDB := ""
+	dbName := h.currentDB
+
+	selectParserMu.Lock()
+	stmt, err := getSelectParser().ParseOneStmt(query, "", "")
+	selectParserMu.Unlock()
+	if err == nil {
+		if upd, ok := stmt.(*ast.UpdateStmt); ok {
+			if tbl := singleTableFromRefs(upd.TableRefs); tbl != nil {
+				if s := tbl.Schema.L; s != "" {
+					explicitDB = s
+				}
+			}
+		}
+	}
+
+	return denyForDB(h, explicitDB, dbName)
+}
+
+// denyForDB resolves the database to report in an access-denied error. If no
+// explicit (query-qualified) database and no selected database exist it returns
+// MySQL's "No database selected" error, otherwise it denies access to the
+// resolved database.
+func denyForDB(h *BlackHoleHandler, explicitDB, selectedDB string) (*mysql.Result, error) {
+	if explicitDB == "" && selectedDB == "" {
+		return nil, fmt.Errorf("No database selected")
+	}
+	if explicitDB != "" {
+		selectedDB = explicitDB
+	}
+	return nil, fmt.Errorf("Access denied for user '%s'@'%%' to database '%s'", h.username, selectedDB)
+}
+
+// handleAlter answers ALTER TABLE/ALTER DATABASE. This black hole server never
+// modifies schema, so the statement always fails with an access-denied error,
+// mirroring MySQL. The TiDB parser extracts the target database (from a
+// db.table qualification, falling back to the selected database) so ALTER
+// options are handled without being persisted.
+func handleAlter(h *BlackHoleHandler, query string) (*mysql.Result, error) {
+	explicitDB := ""
+	dbName := h.currentDB
+
+	selectParserMu.Lock()
+	stmt, err := getSelectParser().ParseOneStmt(query, "", "")
+	selectParserMu.Unlock()
+	if err == nil {
+		switch s := stmt.(type) {
+		case *ast.AlterTableStmt:
+			if s.Table != nil {
+				if d := s.Table.Schema.L; d != "" {
+					explicitDB = d
+				}
+			}
+		case *ast.AlterDatabaseStmt:
+			if s.Name.O != "" {
+				explicitDB = s.Name.O
+			}
+		}
+	}
+
+	return denyForDB(h, explicitDB, dbName)
+}
+
+// handleRename answers RENAME TABLE old TO new. This black hole server never
+// renames a table, so the statement always fails with an access-denied error,
+// mirroring MySQL. The TiDB parser extracts the database of the first table
+// being renamed for the message.
+func handleRename(h *BlackHoleHandler, query string) (*mysql.Result, error) {
+	explicitDB := ""
+	dbName := h.currentDB
+
+	selectParserMu.Lock()
+	stmt, err := getSelectParser().ParseOneStmt(query, "", "")
+	selectParserMu.Unlock()
+	if err == nil {
+		if rn, ok := stmt.(*ast.RenameTableStmt); ok && len(rn.TableToTables) > 0 {
+			if s := rn.TableToTables[0].OldTable.Schema.L; s != "" {
+				explicitDB = s
+			}
+		}
+	}
+
+	return denyForDB(h, explicitDB, dbName)
+}
+
+// handleGrant answers GRANT/REVOKE privilege statements. This black hole server
+// never grants or revokes privileges, so the statement always fails with an
+// access-denied error, mirroring MySQL. The TiDB parser extracts the target
+// database from the privilege level (falling back to the selected database).
+func handleGrant(h *BlackHoleHandler, query string) (*mysql.Result, error) {
+	explicitDB := ""
+	dbName := h.currentDB
+
+	selectParserMu.Lock()
+	stmt, err := getSelectParser().ParseOneStmt(query, "", "")
+	selectParserMu.Unlock()
+	if err == nil {
+		switch s := stmt.(type) {
+		case *ast.GrantStmt:
+			if s.Level != nil && s.Level.DBName != "" {
+				explicitDB = s.Level.DBName
+			}
+		case *ast.RevokeStmt:
+			if s.Level != nil && s.Level.DBName != "" {
+				explicitDB = s.Level.DBName
+			}
+		}
+	}
+
+	return denyForDB(h, explicitDB, dbName)
+}
+
 // singleDeleteTable unwraps the target of a single-table DELETE and returns the
 // table name. Multi-table deletes and deletes with a join return nil.
 func singleDeleteTable(del *ast.DeleteStmt) *ast.TableName {
-	if del.TableRefs == nil || del.TableRefs.TableRefs == nil {
+	if del.TableRefs == nil {
 		return nil
 	}
-	join := del.TableRefs.TableRefs
+	return singleTableFromRefs(del.TableRefs)
+}
+
+// singleTableFromRefs unwraps a single-table reference clause and returns its
+// table name. References to multiple tables or a join return nil.
+func singleTableFromRefs(tcl *ast.TableRefsClause) *ast.TableName {
+	if tcl.TableRefs == nil {
+		return nil
+	}
+	join := tcl.TableRefs
 	if join.Right != nil {
 		return nil
 	}

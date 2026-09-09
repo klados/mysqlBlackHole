@@ -47,7 +47,7 @@ func (h *BlackHoleHandler) HandleQuery(query string) (*mysql.Result, error) {
 	case upper == "SHOW DATABASES" || upper == "SHOW SCHEMAS":
 		return handleShowDatabases(h.redis, h.username)
 	case strings.HasPrefix(upper, "SHOW TABLES"):
-		return handleShowTables(h.redis, h.currentDB)
+		return handleShowTables(h.redis, h.currentDB, h.username, query)
 	case upper == "SELECT DATABASE()" || upper == "SELECT DATABASE() AS `DATABASE()`":
 		return handleSelectDatabase(h.currentDB)
 	case strings.HasPrefix(upper, "SELECT") && strings.Contains(upper, "VERSION"):
@@ -82,6 +82,16 @@ func (h *BlackHoleHandler) HandleQuery(query string) (*mysql.Result, error) {
 		return handleTruncate(h, query)
 	case strings.HasPrefix(upper, "DELETE"):
 		return handleDelete(h, query)
+	case strings.HasPrefix(upper, "INSERT") || strings.HasPrefix(upper, "REPLACE"):
+		return handleInsert(h, query)
+	case strings.HasPrefix(upper, "UPDATE"):
+		return handleUpdate(h, query)
+	case strings.HasPrefix(upper, "ALTER"):
+		return handleAlter(h, query)
+	case strings.HasPrefix(upper, "RENAME TABLE"):
+		return handleRename(h, query)
+	case strings.HasPrefix(upper, "GRANT") || strings.HasPrefix(upper, "REVOKE"):
+		return handleGrant(h, query)
 	default:
 		return mysql.NewResult(nil), nil
 	}
