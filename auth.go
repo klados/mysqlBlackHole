@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 
 	"github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/go-mysql-org/go-mysql/server"
@@ -17,12 +17,15 @@ type BlackHoleAuthHandler struct {
 }
 
 func (h BlackHoleAuthHandler) OnAuthSuccess(conn *server.Conn) error {
-	log.Println("Auth success for username:", conn.GetUser(), "from:", conn.RemoteAddr())
+	fp := GenerateFingerprint(conn)
+	slog.Info("auth_success", fp.AttrsSlice()...)
 	return nil
 }
 
 func (h BlackHoleAuthHandler) OnAuthFailure(conn *server.Conn, err error) {
-	log.Println("Auth failure for username:", conn.GetUser(), "from:", conn.RemoteAddr())
+	fp := GenerateFingerprint(conn)
+	attrs := append(fp.AttrsSlice(), slog.Any("err", err))
+	slog.Info("auth_failure", attrs...)
 }
 
 func (h BlackHoleAuthHandler) GetCredential(username string) (server.Credential, bool, error) {

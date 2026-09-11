@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"mysqlBlackHole/model/sqlemulate"
 	"strings"
 
@@ -11,9 +12,11 @@ import (
 )
 
 type BlackHoleHandler struct {
-	currentDB string
-	username  string
-	redis     *redis.Client
+	currentDB   string
+	username    string
+	redis       *redis.Client
+	fingerprint ClientFingerprint
+	connID      uint32
 }
 
 // SetUsername stores the authenticated username so DB access can be scoped per user.
@@ -21,19 +24,40 @@ func (h *BlackHoleHandler) SetUsername(username string) {
 	h.username = username
 }
 
+// SetFingerprint stores the client fingerprint so log lines can be attributed
+// to a specific client.
+func (h *BlackHoleHandler) SetFingerprint(fp ClientFingerprint) {
+	h.fingerprint = fp
+}
+
+// SetConnID stores the server-assigned connection ID for log correlation.
+func (h *BlackHoleHandler) SetConnID(id uint32) {
+	h.connID = id
+}
+
+func (h *BlackHoleHandler) logAttrs(extra ...any) []any {
+	attrs := []any{slog.Int("conn_id", int(h.connID))}
+	attrs = append(attrs, h.fingerprint.AttrsSlice()...)
+	return append(attrs, extra...)
+}
+
 // UseDB handles the COM_INIT_DB packet, sent when a client executes "USE <db>".
 // It validates the authenticated user is allowed to use the database and tracks
 // it as the current DB.
 func (h *BlackHoleHandler) UseDB(dbName string) error {
-	allowed, err := h.redis.SIsMember(context.Background(), sqlemulate.GetSupportedDBUsersKey(dbName), h.username).Result()
+	ctx := context.Background()
+	allowed, err := h.redis.SIsMember(ctx, sqlemulate.GetSupportedDBUsersKey(dbName), h.username).Result()
 	if err != nil {
+		slog.Error("use_db redis error", h.logAttrs(slog.String("db", dbName), slog.Any("err", err))...)
 		return err
 	}
 	if !allowed {
+		slog.Warn("use_db denied", h.logAttrs(slog.String("db", dbName))...)
 		return fmt.Errorf("Access denied for user '%s' to database '%s'", h.username, dbName)
 	}
 
 	h.currentDB = dbName
+	slog.Info("use_db", h.logAttrs(slog.String("db", dbName))...)
 	return nil
 }
 
@@ -42,6 +66,8 @@ func (h *BlackHoleHandler) UseDB(dbName string) error {
 // helper in query_handlers.go.
 func (h *BlackHoleHandler) HandleQuery(query string) (*mysql.Result, error) {
 	upper := strings.ToUpper(strings.Join(strings.Fields(strings.TrimSpace(query)), " "))
+
+	slog.Info("query", h.logAttrs(slog.String("sql", query), slog.String("db", h.currentDB))...)
 
 	switch {
 	case upper == "SHOW DATABASES" || upper == "SHOW SCHEMAS":

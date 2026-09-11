@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net"
 	"os"
 
@@ -11,9 +11,25 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+const LevelSystem = slog.Level(2)
+
+func systemLog(msg string, args ...any) {
+	slog.Log(context.Background(), LevelSystem, msg, args...)
+}
+
 func main() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.LevelKey && a.Value.Any() == LevelSystem {
+				a.Value = slog.StringValue("SYSTEM")
+			}
+			return a
+		},
+	}))
+	slog.SetDefault(logger.With(slog.String("service", "mysql-blackhole")))
+
 	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, using defaults")
+		systemLog("No .env file found, using defaults")
 	}
 
 	port := os.Getenv("PORT")
@@ -24,9 +40,10 @@ func main() {
 	addr := "0.0.0.0:" + port
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("failed to listen", slog.Any("err", err))
+		os.Exit(1)
 	}
-	log.Printf("MySQL black hole server listening on %s\n", addr)
+	systemLog("MySQL black hole server listening", slog.String("addr", addr))
 
 	redisAddr := os.Getenv("REDIS_ADDR")
 	if redisAddr == "" {
@@ -36,9 +53,10 @@ func main() {
 	rdb := redis.NewClient(&redis.Options{Addr: redisAddr})
 	ctx := context.Background()
 	if err := rdb.Ping(ctx).Err(); err != nil {
-		log.Fatalf("failed to connect to redis at %s: %v", redisAddr, err)
+		slog.Error("failed to connect to redis", slog.String("addr", redisAddr), slog.Any("err", err))
+		os.Exit(1)
 	}
-	log.Printf("connected to redis at %s", redisAddr)
+	systemLog("connected to redis", slog.String("addr", redisAddr))
 	defer rdb.Close()
 
 	srv := server.NewDefaultServer()
@@ -46,7 +64,7 @@ func main() {
 	for {
 		c, err := l.Accept()
 		if err != nil {
-			log.Println("accept error:", err)
+			slog.Error("accept error", slog.Any("err", err))
 			continue
 		}
 
@@ -58,10 +76,14 @@ func main() {
 				return
 			}
 			handler.SetUsername(conn.GetUser())
+			handler.SetConnID(conn.ConnectionID())
+			handler.SetFingerprint(GenerateFingerprint(conn))
+
+			slog.Info("connection_open", handler.logAttrs()...)
 
 			for {
 				if err := conn.HandleCommand(); err != nil {
-					log.Printf("connection id=%d closed: %v\n", conn.ConnectionID(), err)
+					slog.Info("connection_closed", handler.logAttrs(slog.Any("err", err))...)
 					return
 				}
 			}

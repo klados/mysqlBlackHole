@@ -5,7 +5,7 @@ import (
 	"embed"
 	"encoding/json"
 
-	"log"
+	"log/slog"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -24,13 +24,16 @@ type Config struct {
 }
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)).With(slog.String("service", "seed-redis")))
+
 	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, using defaults")
+		slog.Info("No .env file found, using defaults")
 	}
 
 	cfg, err := loadConfig()
 	if err != nil {
-		log.Fatalf("failed to load config: %v", err)
+		slog.Error("failed to load config", slog.Any("err", err))
+		os.Exit(1)
 	}
 
 	addr := os.Getenv("REDIS_ADDR")
@@ -42,19 +45,22 @@ func main() {
 	ctx := context.Background()
 
 	if err := client.Ping(ctx).Err(); err != nil {
-		log.Fatalf("failed to connect to redis at %s: %v", addr, err)
+		slog.Error("failed to connect to redis", slog.String("addr", addr), slog.Any("err", err))
+		os.Exit(1)
 	}
-	log.Printf("connected to redis at %s", addr)
+	slog.Info("connected to redis", slog.String("addr", addr))
 	defer client.Close()
 
 	if err := seedSupportedDBs(ctx, client, cfg.SupportedDBs); err != nil {
-		log.Fatalf("failed to seed %s: %v", sqlemulate.KeySupportedDBs, err)
+		slog.Error("failed to seed", slog.String("key", sqlemulate.KeySupportedDBs), slog.Any("err", err))
+		os.Exit(1)
 	}
 	if err := seedMySQLUsers(ctx, client, cfg.MySQLUsers); err != nil {
-		log.Fatalf("failed to seed %s: %v", sqlemulate.KeyMySQLUsers, err)
+		slog.Error("failed to seed", slog.String("key", sqlemulate.KeyMySQLUsers), slog.Any("err", err))
+		os.Exit(1)
 	}
 
-	log.Println("redis seeding complete")
+	slog.Info("redis seeding complete")
 }
 
 func seedSupportedDBs(ctx context.Context, client *redis.Client, allowedDBs []sqlemulate.SupportedDbs) error {
