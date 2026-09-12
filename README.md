@@ -34,8 +34,10 @@ Copy `.env.example` to `.env`:
 | `PORT`      | `3306`    | TCP port to listen on  |
 | `REDIS_ADDR`| (see .env)| Redis connection addr   |
 
-> Inside Docker Compose the app reaches Redis by the service name (`redis:6379`);
-> `.env` / host runs use `localhost:6379`.
+> Configuration is resolved by Docker Compose interpolation, which reads shell
+> environment variables first, then the project `.env`. The defaults target the
+> Docker Compose `redis` service (`redis:6379`). For host runs
+> (`go run .`), override with `REDIS_ADDR=localhost:6379 go run .`.
 
 ## Running
 
@@ -76,10 +78,17 @@ the seeded data.
    docker compose run --rm seed
    ```
 
-   Only `3306/tcp` is published; `9200`, `5601`, `8686`, and `6379` are not reachable
-   from the network.
+   No `.env` file is required on the server: Docker Compose interpolates `PORT`
+   and `REDIS_ADDR` (with their `redis:6379` default) from the shell environment.
 
-2. From your admin machine, tunnel in to view Kibana:
+   Only `3306/tcp` is published; `9200`, `5601`, `8686`, and `6379` are not
+   reachable from the network.
+
+2. Deploying via GitHub Actions: set `PORT`/`REDIS_ADDR` under **Repository →
+   Settings → Variables**, and `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`
+   under **Secrets**. Pushing to `main` triggers `.github/workflows/deploy.yml`,
+   which copies the project to the server and runs `docker compose up -d --build`
+   plus the one-shot `seed` service.
 
    ```sh
    ssh -L 5601:localhost:5601 user@server

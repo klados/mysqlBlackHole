@@ -12,8 +12,8 @@ services:
       context: .
       target: app
     environment:
-      PORT: "3306"
-      REDIS_ADDR: redis:6379
+      PORT: "${PORT:-3306}"
+      REDIS_ADDR: "${REDIS_ADDR:-redis:6379}"
     ports:
       - "3306:3306"
     labels:
@@ -28,7 +28,7 @@ services:
       context: .
       target: seed
     environment:
-      REDIS_ADDR: redis:6379
+      REDIS_ADDR: "${REDIS_ADDR:-redis:6379}"
     labels:
       - "mbh.logging.enabled=true"
     depends_on:
