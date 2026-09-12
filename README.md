@@ -34,18 +34,72 @@ Copy `.env.example` to `.env`:
 | `PORT`      | `3306`    | TCP port to listen on  |
 | `REDIS_ADDR`| (see .env)| Redis connection addr   |
 
+> Inside Docker Compose the app reaches Redis by the service name (`redis:6379`);
+> `.env` / host runs use `localhost:6379`.
+
 ## Running
 
 ```sh
-# start the backing store
-docker compose up -d
+# full stack: Redis, black-hole server, Elasticsearch, Kibana, Vector
+docker compose up -d --build
 
-# seed fake data into Redis
-go run ./cmd/seed-redis
+# seed fake data into Redis (one-shot; its logs also flow to Elasticsearch)
+docker compose run --rm seed
 
-# run the server
+# optional: run the server on the host instead of in Docker
 go run .
 ```
+
+To try it out, connect a MySQL client to `localhost:3306` with a seeded user.
+
+### Logs & observability
+
+Every log line is JSON written to stdout and tagged with `"service":"mysql-blackhole"`
+(server) or `"service":"seed-redis"` (seeder). Vector (`vector.yaml`) watches the
+labelled containers and ships them to Elasticsearch index `mysqlblackhole`.
+
+- Kibana: <http://localhost:5601>
+- Elasticsearch: <http://localhost:9200>
+- Vector API/health: <http://localhost:8686/health>
+
+## Deploying to a server
+
+Only the honeypot port (`3306`) is meant to be public. The observability stack
+(Elasticsearch, Kibana, Vector API) and Redis are bound to `localhost` only and are
+reached through an SSH tunnel, so attackers probing the server cannot touch your logs or
+the seeded data.
+
+1. Copy the project to the server and start the stack:
+
+   ```sh
+   docker compose up -d --build
+   docker compose run --rm seed
+   ```
+
+   Only `3306/tcp` is published; `9200`, `5601`, `8686`, and `6379` are not reachable
+   from the network.
+
+2. From your admin machine, tunnel in to view Kibana:
+
+   ```sh
+   ssh -L 5601:localhost:5601 user@server
+   ```
+
+   then open <http://localhost:5601> locally.
+
+3. Lock down the machine with a firewall (UFW):
+
+   ```sh
+   ufw default deny incoming
+   ufw default allow outgoing
+   ufw allow 22/tcp      # SSH (your tunnel)
+   ufw allow 3306/tcp    # the honeypot
+   ufw enable
+   ```
+
+   On a cloud VPS, apply the equivalent in the security group: inbound only `22` and
+   `3306`.
+
 
 ## Supported command surface
 

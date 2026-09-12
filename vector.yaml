@@ -1,0 +1,46 @@
+api:
+  enabled: true
+  address: 127.0.0.1:8686
+
+sources:
+  docker:
+    type: docker_logs
+    include_labels:
+      - "mbh.logging.enabled=true"
+    auto_partial_merge: true
+
+transforms:
+  parse_json:
+    type: remap
+    inputs:
+      - docker
+    source: |
+      msg = del(.message)
+      parsed = parse_json!(msg)
+      . = merge!(., parsed)
+
+      # drop docker metadata noise
+      del(.container_id)
+      del(.container_created_at)
+      del(.container_image_id)
+      del(.container_image_name)
+      del(.host)
+      del(.container_labels)
+      del(.label)
+      del(.image)
+      del(.source_type)
+      del(.stream)
+
+sinks:
+  elasticsearch:
+    type: elasticsearch
+    inputs:
+      - parse_json
+    endpoints:
+      - http://elasticsearch:9200
+    mode: bulk
+    api_version: v8
+    bulk:
+      index: mysqlblackhole
+    request:
+      timeout_secs: 30
