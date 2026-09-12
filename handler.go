@@ -126,29 +126,34 @@ func (h *BlackHoleHandler) HandleQuery(query string) (*mysql.Result, error) {
 // HandleFieldList handles the COM_FIELD_LIST packet, used by clients to ask for the
 // columns of a table. Not supported.
 func (h *BlackHoleHandler) HandleFieldList(table string, fieldWildcard string) ([]*mysql.Field, error) {
+	slog.Warn("not supported handler", h.logAttrs(slog.String("handler", "HandleFieldList"))...)
 	return nil, fmt.Errorf("not supported")
 }
 
 // HandleStmtPrepare handles the COM_STMT_PREPARE packet, the first step of prepared
 // statement support. It is a no-op so clients can prepare statements without error.
 func (h *BlackHoleHandler) HandleStmtPrepare(query string) (int, int, any, error) {
+	slog.Warn("not supported handler", h.logAttrs(slog.String("handler", "HandleStmtPrepare"))...)
 	return 0, 0, nil, nil
 }
 
 // HandleStmtExecute handles the COM_STMT_EXECUTE packet, which executes a previously
 // prepared statement. It returns an empty result set.
 func (h *BlackHoleHandler) HandleStmtExecute(context any, query string, args []any) (*mysql.Result, error) {
+	slog.Warn("not supported handler", h.logAttrs(slog.String("handler", "HandleStmtExecute"))...)
 	return mysql.NewResult(nil), nil
 }
 
 // HandleStmtClose handles the COM_STMT_CLOSE packet, releasing a prepared statement.
 // It's a no-op since prepared statements are not tracked.
 func (h *BlackHoleHandler) HandleStmtClose(context any) error {
+	slog.Warn("not supported handler", h.logAttrs(slog.String("handler", "HandleStmtClose"))...)
 	return nil
 }
 
 // HandleOtherCommand handles any MySQL command not covered above (e.g. COM_SET_OPTION).
 // Not supported.
 func (h *BlackHoleHandler) HandleOtherCommand(cmd byte, data []byte) error {
+	slog.Warn("not supported handler", h.logAttrs(slog.String("handler", "HandleOtherCommand"))...)
 	return fmt.Errorf("not supported")
 }
