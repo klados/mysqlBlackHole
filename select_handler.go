@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"math"
 	"sort"
 	"strings"
 	"sync"
@@ -333,15 +332,11 @@ func columnIndex(columns []string, name string) (int, bool) {
 }
 
 // normalizeValue converts values read from JSON (or produced by evaluation)
-// into types the MySQL text protocol can encode: integral floats become int64,
-// bools become 0/1.
+// into types the MySQL text protocol can encode. Floats stay floats so a
+// column's wire type is consistent (BuildSimpleResultset rejects mixed types
+// in one column), and bools become 0/1.
 func normalizeValue(v any) any {
 	switch t := v.(type) {
-	case float64:
-		if t == math.Trunc(t) {
-			return int64(t)
-		}
-		return t
 	case bool:
 		if t {
 			return int64(1)
