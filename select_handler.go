@@ -91,12 +91,8 @@ func handleSelect(rdb *redis.Client, currentDB, query string) (*mysql.Result, er
 		return emptySelectResult()
 	}
 
-	allowed, err := rdb.SIsMember(context.Background(), sqlemulate.GetAllowedDBTablesKey(dbName), table.Name.L).Result()
-	if err != nil {
-		return nil, err
-	}
-	if !allowed {
-		return emptySelectResult()
+	if res, err := requireTableInDB(rdb, dbName, table.Name.L); err != nil || res != nil {
+		return res, err
 	}
 
 	data, found, err := loadTableData(rdb, dbName, table.Name.L)
@@ -122,12 +118,12 @@ func handleSelect(rdb *redis.Client, currentDB, query string) (*mysql.Result, er
 func loadTableData(rdb *redis.Client, dbName, table string) (sqlemulate.TableData, bool, error) {
 	val, err := rdb.Get(context.Background(), sqlemulate.GetTableDataKey(dbName, table)).Result()
 
-	if err != nil {
-		return sqlemulate.TableData{}, false, err
-	}
-
 	if errors.Is(err, redis.Nil) {
 		return sqlemulate.TableData{}, false, nil
+	}
+
+	if err != nil {
+		return sqlemulate.TableData{}, false, err
 	}
 
 	var data sqlemulate.TableData

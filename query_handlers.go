@@ -176,6 +176,7 @@ func handleDropDatabase(h *BlackHoleHandler, query string) (*mysql.Result, error
 // and TEMPORARY are handled without being persisted.
 func handleDropTable(h *BlackHoleHandler, query string) (*mysql.Result, error) {
 	explicitDB := ""
+	tableName := ""
 	dbName := h.currentDB
 
 	selectParserMu.Lock()
@@ -183,6 +184,7 @@ func handleDropTable(h *BlackHoleHandler, query string) (*mysql.Result, error) {
 	selectParserMu.Unlock()
 	if err == nil {
 		if drop, ok := stmt.(*ast.DropTableStmt); ok && len(drop.Tables) > 0 {
+			tableName = drop.Tables[0].Name.L
 			if s := drop.Tables[0].Schema.L; s != "" {
 				explicitDB = s
 			}
@@ -194,6 +196,9 @@ func handleDropTable(h *BlackHoleHandler, query string) (*mysql.Result, error) {
 	}
 	if explicitDB != "" {
 		dbName = explicitDB
+	}
+	if res, err := requireTableInDB(h.redis, dbName, tableName); err != nil || res != nil {
+		return res, err
 	}
 
 	return nil, fmt.Errorf("Access denied for user '%s'@'%%' to database '%s'", h.username, dbName)
@@ -225,6 +230,7 @@ func handleCreateTable(h *BlackHoleHandler, query string) (*mysql.Result, error)
 // database is selected it returns MySQL's "No database selected" error instead.
 func handleTruncate(h *BlackHoleHandler, query string) (*mysql.Result, error) {
 	explicitDB := ""
+	tableName := ""
 	dbName := h.currentDB
 
 	selectParserMu.Lock()
@@ -232,6 +238,7 @@ func handleTruncate(h *BlackHoleHandler, query string) (*mysql.Result, error) {
 	selectParserMu.Unlock()
 	if err == nil {
 		if tr, ok := stmt.(*ast.TruncateTableStmt); ok && tr.Table != nil {
+			tableName = tr.Table.Name.L
 			if s := tr.Table.Schema.L; s != "" {
 				explicitDB = s
 			}
@@ -243,6 +250,9 @@ func handleTruncate(h *BlackHoleHandler, query string) (*mysql.Result, error) {
 	}
 	if explicitDB != "" {
 		dbName = explicitDB
+	}
+	if res, err := requireTableInDB(h.redis, dbName, tableName); err != nil || res != nil {
+		return res, err
 	}
 
 	return nil, fmt.Errorf("Access denied for user '%s'@'%%' to database '%s'", h.username, dbName)
@@ -256,6 +266,7 @@ func handleTruncate(h *BlackHoleHandler, query string) (*mysql.Result, error) {
 // message; the statement is denied regardless.
 func handleDelete(h *BlackHoleHandler, query string) (*mysql.Result, error) {
 	explicitDB := ""
+	tableName := ""
 	dbName := h.currentDB
 
 	selectParserMu.Lock()
@@ -264,6 +275,7 @@ func handleDelete(h *BlackHoleHandler, query string) (*mysql.Result, error) {
 	if err == nil {
 		if del, ok := stmt.(*ast.DeleteStmt); ok {
 			if tbl := singleDeleteTable(del); tbl != nil {
+				tableName = tbl.Name.L
 				if s := tbl.Schema.L; s != "" {
 					explicitDB = s
 				}
@@ -271,14 +283,15 @@ func handleDelete(h *BlackHoleHandler, query string) (*mysql.Result, error) {
 		}
 	}
 
-	if explicitDB == "" && dbName == "" {
-		return nil, fmt.Errorf("No database selected")
-	}
+	resolvedDB := dbName
 	if explicitDB != "" {
-		dbName = explicitDB
+		resolvedDB = explicitDB
+	}
+	if res, err := requireTableInDB(h.redis, resolvedDB, tableName); err != nil || res != nil {
+		return res, err
 	}
 
-	return nil, fmt.Errorf("Access denied for user '%s'@'%%' to database '%s'", h.username, dbName)
+	return denyForDB(h, explicitDB, dbName)
 }
 
 // handleInsert answers INSERT [INTO] <table> ... and REPLACE [INTO] <table> ...
@@ -288,6 +301,7 @@ func handleDelete(h *BlackHoleHandler, query string) (*mysql.Result, error) {
 // database selected" error instead.
 func handleInsert(h *BlackHoleHandler, query string) (*mysql.Result, error) {
 	explicitDB := ""
+	tableName := ""
 	dbName := h.currentDB
 
 	selectParserMu.Lock()
@@ -296,11 +310,20 @@ func handleInsert(h *BlackHoleHandler, query string) (*mysql.Result, error) {
 	if err == nil {
 		if ins, ok := stmt.(*ast.InsertStmt); ok {
 			if tbl := singleTableFromRefs(ins.Table); tbl != nil {
+				tableName = tbl.Name.L
 				if s := tbl.Schema.L; s != "" {
 					explicitDB = s
 				}
 			}
 		}
+	}
+
+	resolvedDB := dbName
+	if explicitDB != "" {
+		resolvedDB = explicitDB
+	}
+	if res, err := requireTableInDB(h.redis, resolvedDB, tableName); err != nil || res != nil {
+		return res, err
 	}
 
 	return denyForDB(h, explicitDB, dbName)
@@ -314,6 +337,7 @@ func handleInsert(h *BlackHoleHandler, query string) (*mysql.Result, error) {
 // message; the statement is denied regardless.
 func handleUpdate(h *BlackHoleHandler, query string) (*mysql.Result, error) {
 	explicitDB := ""
+	tableName := ""
 	dbName := h.currentDB
 
 	selectParserMu.Lock()
@@ -322,11 +346,20 @@ func handleUpdate(h *BlackHoleHandler, query string) (*mysql.Result, error) {
 	if err == nil {
 		if upd, ok := stmt.(*ast.UpdateStmt); ok {
 			if tbl := singleTableFromRefs(upd.TableRefs); tbl != nil {
+				tableName = tbl.Name.L
 				if s := tbl.Schema.L; s != "" {
 					explicitDB = s
 				}
 			}
 		}
+	}
+
+	resolvedDB := dbName
+	if explicitDB != "" {
+		resolvedDB = explicitDB
+	}
+	if res, err := requireTableInDB(h.redis, resolvedDB, tableName); err != nil || res != nil {
+		return res, err
 	}
 
 	return denyForDB(h, explicitDB, dbName)
@@ -346,6 +379,42 @@ func denyForDB(h *BlackHoleHandler, explicitDB, selectedDB string) (*mysql.Resul
 	return nil, fmt.Errorf("Access denied for user '%s'@'%%' to database '%s'", h.username, selectedDB)
 }
 
+// tableExistsInDB reports whether the given table belongs to the database's
+// allowed-tables set in Redis. The comparison is case-insensitive so that
+// upper-cased seed names (e.g. INFORMATION_SCHEMA) match lower-cased
+// identifiers produced by the SQL parser.
+func tableExistsInDB(rdb *redis.Client, dbName, tableName string) (bool, error) {
+	members, err := rdb.SMembers(context.Background(), sqlemulate.GetAllowedDBTablesKey(dbName)).Result()
+	if err != nil {
+		return false, err
+	}
+	for _, m := range members {
+		if strings.EqualFold(m, tableName) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// requireTableInDB ensures the given table belongs to the resolved database,
+// returning MySQL's ER_UNKNOWN_TABLE error when it does not. It returns the
+// access result to return to the client (non-nil on error) or nil when the
+// table is valid.
+func requireTableInDB(rdb *redis.Client, dbName, tableName string) (*mysql.Result, error) {
+	if dbName == "" || tableName == "" {
+		return nil, nil
+	}
+	exists, err := tableExistsInDB(rdb, dbName, tableName)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, mysql.NewError(mysql.ER_UNKNOWN_TABLE,
+			fmt.Sprintf("Unknown table '%s' in %s", tableName, dbName))
+	}
+	return nil, nil
+}
+
 // handleAlter answers ALTER TABLE/ALTER DATABASE. This black hole server never
 // modifies schema, so the statement always fails with an access-denied error,
 // mirroring MySQL. The TiDB parser extracts the target database (from a
@@ -353,6 +422,7 @@ func denyForDB(h *BlackHoleHandler, explicitDB, selectedDB string) (*mysql.Resul
 // options are handled without being persisted.
 func handleAlter(h *BlackHoleHandler, query string) (*mysql.Result, error) {
 	explicitDB := ""
+	tableName := ""
 	dbName := h.currentDB
 
 	selectParserMu.Lock()
@@ -362,6 +432,7 @@ func handleAlter(h *BlackHoleHandler, query string) (*mysql.Result, error) {
 		switch s := stmt.(type) {
 		case *ast.AlterTableStmt:
 			if s.Table != nil {
+				tableName = s.Table.Name.L
 				if d := s.Table.Schema.L; d != "" {
 					explicitDB = d
 				}
@@ -373,6 +444,14 @@ func handleAlter(h *BlackHoleHandler, query string) (*mysql.Result, error) {
 		}
 	}
 
+	resolvedDB := dbName
+	if explicitDB != "" {
+		resolvedDB = explicitDB
+	}
+	if res, err := requireTableInDB(h.redis, resolvedDB, tableName); err != nil || res != nil {
+		return res, err
+	}
+
 	return denyForDB(h, explicitDB, dbName)
 }
 
@@ -382,6 +461,7 @@ func handleAlter(h *BlackHoleHandler, query string) (*mysql.Result, error) {
 // being renamed for the message.
 func handleRename(h *BlackHoleHandler, query string) (*mysql.Result, error) {
 	explicitDB := ""
+	tableName := ""
 	dbName := h.currentDB
 
 	selectParserMu.Lock()
@@ -389,10 +469,19 @@ func handleRename(h *BlackHoleHandler, query string) (*mysql.Result, error) {
 	selectParserMu.Unlock()
 	if err == nil {
 		if rn, ok := stmt.(*ast.RenameTableStmt); ok && len(rn.TableToTables) > 0 {
+			tableName = rn.TableToTables[0].OldTable.Name.L
 			if s := rn.TableToTables[0].OldTable.Schema.L; s != "" {
 				explicitDB = s
 			}
 		}
+	}
+
+	resolvedDB := dbName
+	if explicitDB != "" {
+		resolvedDB = explicitDB
+	}
+	if res, err := requireTableInDB(h.redis, resolvedDB, tableName); err != nil || res != nil {
+		return res, err
 	}
 
 	return denyForDB(h, explicitDB, dbName)

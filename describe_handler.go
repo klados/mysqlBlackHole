@@ -1,14 +1,11 @@
 package main
 
 import (
-	"context"
 	"strings"
 
 	"github.com/go-mysql-org/go-mysql/mysql"
 	"github.com/pingcap/tidb/pkg/parser/ast"
 	"github.com/redis/go-redis/v9"
-
-	"mysqlBlackHole/model/sqlemulate"
 )
 
 // describeColumns lists the result columns of a MySQL DESCRIBE statement in
@@ -44,12 +41,8 @@ func handleDescribe(rdb *redis.Client, currentDB, query string) (*mysql.Result, 
 		return emptySelectResult()
 	}
 
-	allowed, err := rdb.SIsMember(context.Background(), sqlemulate.GetAllowedDBTablesKey(dbName), show.Table.Name.L).Result()
-	if err != nil {
-		return nil, err
-	}
-	if !allowed {
-		return emptySelectResult()
+	if res, err := requireTableInDB(rdb, dbName, show.Table.Name.L); err != nil || res != nil {
+		return res, err
 	}
 
 	data, found, err := loadTableData(rdb, dbName, show.Table.Name.L)
