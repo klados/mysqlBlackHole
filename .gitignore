@@ -2,3 +2,8 @@
 /mysqlBlackHole
 /seed-redis
 .env
+.env.*
+!.env.example
+.agents/
+skills-lock.json
+*.log

@@ -31,6 +31,8 @@ services:
       target: seed
     environment:
       REDIS_ADDR: "${REDIS_ADDR:-redis:6379}"
+      # Overrides public decoy creds in seed_data.yaml. Set in shell/CI secrets in prod.
+      HONEYPOT_USERS: "${HONEYPOT_USERS:-}"
     labels:
       - "mbh.logging.enabled=true"
     depends_on:
@@ -41,6 +43,7 @@ services:
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.17.3
+    # Local-dev only: no auth. Keep unexposed (no ports published) and use SSH tunnel.
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
@@ -70,6 +73,7 @@ services:
 
   vector:
     image: timberio/vector:0.45.0-alpine
+    # docker.sock is privileged (read-only here for log collection). Restrict host access.
     volumes:
       - ./vector.yaml:/etc/vector/vector.yaml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro

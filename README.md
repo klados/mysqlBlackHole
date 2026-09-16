@@ -25,6 +25,11 @@ read data lives in **Redis** instead of a real database. Every write path is den
 A companion seeder (`cmd/seed-redis`) loads `seed_data.yaml` into Redis (a fake M&A deal
 database plus listings of `information_schema`/`mysql`/`performance_schema` tables).
 
+> **All seed data is synthetic and fictional** (LLM-generated for deception).
+> Any resemblance to real companies, people, or contacts is coincidental.
+> `mysql_users` in `seed_data.yaml` are **public decoys** — never reuse those
+> passwords anywhere real. Set `HONEYPOT_USERS` in production to override them.
+
 ## Configuration
 
 Copy `.env.example` to `.env`:
@@ -33,6 +38,7 @@ Copy `.env.example` to `.env`:
 |-------------|-----------|------------------------|
 | `PORT`      | `3306`    | TCP port to listen on  |
 | `REDIS_ADDR`| (see .env)| Redis connection addr   |
+| `HONEYPOT_USERS` | (decoys in YAML) | `user:pass,user2:pass2` override for seeded MySQL users. Set in prod so live creds differ from public decoys. |
 
 > Configuration is resolved by Docker Compose interpolation, which reads shell
 > environment variables first, then the project `.env`. The defaults target the
@@ -78,15 +84,22 @@ the seeded data.
    docker compose run --rm seed
    ```
 
-   No `.env` file is required on the server: Docker Compose interpolates `PORT`
-   and `REDIS_ADDR` (with their `redis:6379` default) from the shell environment.
+   No `.env` file is required on the server: Docker Compose interpolates `PORT`,
+   `REDIS_ADDR` (with their `redis:6379` default), and `HONEYPOT_USERS` from the
+   shell environment. Set `HONEYPOT_USERS` on the server / in CI so production
+   credentials differ from the public decoys in `seed_data.yaml`.
 
    Only `3306/tcp` is published; `9200`, `5601`, `8686`, and `6379` are not
    reachable from the network.
 
-2. Deploying via GitHub Actions: set `PORT`/`REDIS_ADDR` under **Repository →
-   Settings → Variables**, and `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`
-   under **Secrets**. Pushing to `main` triggers `.github/workflows/deploy.yml`,
+   > **Elasticsearch has no auth (`xpack.security.enabled=false`)** by design for
+   > local dev. Never expose `9200`/`5601` publicly; keep the localhost bindings
+   > and reach them via SSH tunnel. `vector` mounts `/var/run/docker.sock:ro`
+   > to read container logs — that is privileged; restrict host access accordingly.
+
+  2. Deploying via GitHub Actions: set `PORT`/`REDIS_ADDR`/`HONEYPOT_USERS` under **Repository →
+   Settings → Variables** (or `HONEYPOT_USERS` under **Secrets**), and `DEPLOY_HOST`,
+   `DEPLOY_USER`, `DEPLOY_SSH_KEY` (private key) under **Secrets**. Pushing to `main` triggers `.github/workflows/deploy.yml`,
    which copies the project to the server and runs `docker compose up -d --build`
    plus the one-shot `seed` service.
 
@@ -108,6 +121,11 @@ the seeded data.
 
    On a cloud VPS, apply the equivalent in the security group: inbound only `22` and
    `3306`.
+
+   > **Open-source honeypot note:** publishing this repo tells attackers how it
+   > behaves. In production, change the obvious fingerprints: version string
+   > (`handleSelectVersion`), seeded DB/table names, and the `mysqlblackhole`
+   > index/label in `vector.yaml`, and use unique `HONEYPOT_USERS` credentials.
 
 
 ## Supported command surface
