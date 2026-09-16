@@ -29,6 +29,9 @@ services:
     build:
       context: .
       target: seed
+    # Stable name so `docker logs mysqlblackhole-seed` works every run.
+    # Note: `docker compose run` ignores this unless passed --name (see README/deploy).
+    container_name: mysqlblackhole-seed
     environment:
       REDIS_ADDR: "${REDIS_ADDR:-redis:6379}"
       # Overrides public decoy creds in seed_data.yaml. Set in shell/CI secrets in prod.

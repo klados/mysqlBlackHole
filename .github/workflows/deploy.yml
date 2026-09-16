@@ -36,17 +36,32 @@ jobs:
           overwrite: true
 
       - name: Deploy stack
+        env:
+          DEPLOY_PORT: ${{ vars.PORT }}
+          DEPLOY_REDIS_ADDR: ${{ vars.REDIS_ADDR }}
+          DEPLOY_HONEYPOT_USERS: ${{ secrets.HONEYPOT_USERS }}
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # Pass runner-side env to the remote script by value (no inline
+          # interpolation), so passwords with $, `"`, backticks, etc. survive.
+          envs: DEPLOY_PORT,DEPLOY_REDIS_ADDR,DEPLOY_HONEYPOT_USERS
           script: |
+            set -eu
             cd /srv/mysqlBlackHole
             # Never deploy git history or local env files to the honeypot host.
             rm -rf .git .github .idea .agents .env || true
-            export PORT="${{ vars.PORT }}"
-            export REDIS_ADDR="${{ vars.REDIS_ADDR }}"
-            export HONEYPOT_USERS="${{ secrets.HONEYPOT_USERS }}"
+            export PORT="$DEPLOY_PORT"
+            export REDIS_ADDR="$DEPLOY_REDIS_ADDR"
+            export HONEYPOT_USERS="$DEPLOY_HONEYPOT_USERS"
+            if [ -z "${HONEYPOT_USERS:-}" ]; then
+              echo "::warning::HONEYPOT_USERS is empty — seeder will fall back to public decoy credentials" >&2
+            fi
             docker compose up -d --build
-            docker compose run --rm seed
+            # `up --build` skips the `seed` profile, so build it explicitly.
+            # Otherwise `run` below can reuse a stale image without HONEYPOT_USERS support.
+            docker compose build seed
+            docker rm -f mysqlblackhole-seed || true
+            docker compose run --rm --build --name mysqlblackhole-seed seed

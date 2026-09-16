@@ -52,7 +52,8 @@ Copy `.env.example` to `.env`:
 docker compose up -d --build
 
 # seed fake data into Redis (one-shot; its logs also flow to Elasticsearch)
-docker compose run --rm seed
+# --name keeps the container name stable (mysqlblackhole-seed) across runs.
+docker compose run --rm --name mysqlblackhole-seed seed
 
 # optional: run the server on the host instead of in Docker
 go run .
@@ -81,7 +82,7 @@ the seeded data.
 
    ```sh
    docker compose up -d --build
-   docker compose run --rm seed
+   docker compose run --rm --name mysqlblackhole-seed seed
    ```
 
    No `.env` file is required on the server: Docker Compose interpolates `PORT`,
