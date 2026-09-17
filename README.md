@@ -33,35 +33,10 @@ database plus listings of `information_schema`/`mysql`/`performance_schema` tabl
 
 Copy `.env.example` to `.env`:
 
-| Variable        | Default      | Description                                     |
-|-----------------|--------------|-------------------------------------------------|
-| `PORT`          | `3306`       | TCP port to listen on                           |
-| `REDIS_ADDR`    | (see .env)   | Redis connection addr                            |
-| `TLS_ENABLED`   | `true`       | Advertise `CLIENT_SSL` (see TLS below)          |
-| `TLS_SANS`      | (unset)      | Extra hostnames/IPs for the self-signed cert     |
-| `TLS_CERT_FILE` | (unset)      | PEM server certificate (real cert to trust)      |
-| `TLS_KEY_FILE`  | (unset)      | PEM server private key (with `TLS_CERT_FILE`)    |
-
-**TLS**: enabled by default. The server advertises `CLIENT_SSL` with an
-auto-generated self-signed certificate (SANs: `localhost`, `127.0.0.1`, `::1`,
-plus anything in `TLS_SANS`), but **never requires** TLS — plaintext clients,
-scanners, and sqlmap all connect with no flags. Set `TLS_ENABLED=false` to stop
-advertising SSL entirely.
-
-Clients that verify the server certificate against trusted CAs (e.g. modern
-MariaDB clients default to verifying since 11.4) will reject the self-signed
-cert. To connect from such a client:
-
-- set `TLS_ENABLED=false`, or
-- supply a real cert via `TLS_CERT_FILE`/`TLS_KEY_FILE`, or
-- add once to the client machine's `~/.my.cnf`:
-
-  ```ini
-  [client]
-  skip-ssl
-  ```
-
-  After that, plain `mariadb -h <ip> -u <user> -p` works with no flags.
+| Variable    | Default   | Description            |
+|-------------|-----------|------------------------|
+| `PORT`      | `3306`    | TCP port to listen on  |
+| `REDIS_ADDR`| (see .env)| Redis connection addr   |
 
 > Configuration is resolved by Docker Compose interpolation, which reads shell
 > environment variables first, then the project `.env`. The defaults target the
@@ -83,13 +58,6 @@ go run .
 ```
 
 To try it out, connect a MySQL client to `localhost:3306` with a seeded user.
-TLS is offered but never required, so most clients connect with no flags
-(if your client verifies certificates, add `skip-ssl` to `~/.my.cnf` once,
-or connect with `--skip-ssl`):
-
-```sh
-mysql -h 127.0.0.1 -P 3306 -u honeypot -p -e "SHOW DATABASES;"
-```
 
 ### Logs & observability
 
@@ -115,9 +83,8 @@ the seeded data.
    docker compose run --rm --name mysqlblackhole-seed seed
    ```
 
-   No `.env` file is required on the server: Docker Compose interpolates `PORT`,
-   `REDIS_ADDR`, and `TLS_*` (with their `redis:6379` / TLS-enabled defaults) from
-   the shell environment.
+   No `.env` file is required on the server: Docker Compose interpolates `PORT`
+   and `REDIS_ADDR` (with their `redis:6379` default) from the shell environment.
 
    Only `3306/tcp` is published; `9200`, `5601`, `8686`, and `6379` are not
    reachable from the network.

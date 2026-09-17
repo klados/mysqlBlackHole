@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 
+	"github.com/go-mysql-org/go-mysql/server"
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 )
@@ -58,7 +59,7 @@ func main() {
 	systemLog("connected to redis", slog.String("addr", redisAddr))
 	defer rdb.Close()
 
-	srv := newServer()
+	srv := server.NewDefaultServer()
 
 	for {
 		c, err := l.Accept()
