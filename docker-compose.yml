@@ -16,6 +16,10 @@ services:
     environment:
       PORT: "${PORT:-3306}"
       REDIS_ADDR: "${REDIS_ADDR:-redis:6379}"
+      TLS_ENABLED: "${TLS_ENABLED:-true}"
+      TLS_SANS: "${TLS_SANS:-}"
+      TLS_CERT_FILE: "${TLS_CERT_FILE:-}"
+      TLS_KEY_FILE: "${TLS_KEY_FILE:-}"
     ports:
       - "3306:3306"
     labels:
