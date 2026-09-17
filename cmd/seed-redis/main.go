@@ -7,7 +7,6 @@ import (
 
 	"log/slog"
 	"os"
-	"strings"
 
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
@@ -35,33 +34,6 @@ func main() {
 	if err != nil {
 		slog.Error("failed to load config", slog.Any("err", err))
 		os.Exit(1)
-	}
-
-	// HONEYPOT_USERS (format "user:pass,user2:pass2") overrides the public
-	// decoy credentials in seed_data.yaml. Use this in production so the
-	// published passwords are never the live ones. Never log passwords.
-	// A set-but-unparseable value is a hard error: silently reseeding the
-	// public decoys would leave the honeypot on known credentials.
-	rawUsers, usersSet := os.LookupEnv("HONEYPOT_USERS")
-	override, skipped := parseUsers(rawUsers)
-	if usersSet && strings.TrimSpace(rawUsers) != "" && len(override) == 0 {
-		slog.Error("HONEYPOT_USERS is set but no valid entries parsed; refusing to seed public decoys",
-			slog.Int("skipped", skipped))
-		os.Exit(1)
-	}
-	if len(override) > 0 {
-		names := make([]string, 0, len(override))
-		for _, u := range override {
-			names = append(names, u.Username)
-		}
-		slog.Info("overriding decoy mysql_users from HONEYPOT_USERS",
-			slog.Int("count", len(override)),
-			slog.Int("skipped", skipped),
-			slog.Any("users", names))
-		cfg.MySQLUsers = override
-	} else if skipped > 0 {
-		slog.Warn("HONEYPOT_USERS had only malformed entries; using YAML decoys",
-			slog.Int("skipped", skipped))
 	}
 
 	addr := os.Getenv("REDIS_ADDR")
@@ -193,42 +165,6 @@ func loadConfig() (*Config, error) {
 	}
 
 	return &cfg, nil
-}
-
-// usersFromEnv parses HONEYPOT_USERS ("user:pass,user2:pass2") into MySQLUser
-// entries. Malformed pairs are skipped. Returns nil when unset so callers keep
-// the YAML decoys.
-func usersFromEnv() []sqlemulate.MySQLUser {
-	users, _ := parseUsers(os.Getenv("HONEYPOT_USERS"))
-	return users
-}
-
-// parseUsers splits raw ("user:pass,user2:pass2") on commas, then on the first
-// colon. It returns the valid entries plus the count of skipped malformed
-// pairs. Passwords may contain colons but not commas.
-func parseUsers(raw string) ([]sqlemulate.MySQLUser, int) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return nil, 0
-	}
-	var out []sqlemulate.MySQLUser
-	skipped := 0
-	for _, pair := range strings.Split(raw, ",") {
-		pair = strings.TrimSpace(pair)
-		if pair == "" {
-			continue
-		}
-		user, pass, ok := strings.Cut(pair, ":")
-		user = strings.TrimSpace(user)
-		pass = strings.TrimSpace(pass)
-		if !ok || user == "" || pass == "" {
-			slog.Warn("skipping malformed HONEYPOT_USERS entry")
-			skipped++
-			continue
-		}
-		out = append(out, sqlemulate.MySQLUser{Username: user, Password: pass})
-	}
-	return out, skipped
 }
 
 func stringSliceToAny(in []string) []any {

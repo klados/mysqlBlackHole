@@ -34,8 +34,6 @@ services:
     container_name: mysqlblackhole-seed
     environment:
       REDIS_ADDR: "${REDIS_ADDR:-redis:6379}"
-      # Overrides public decoy creds in seed_data.yaml. Set in shell/CI secrets in prod.
-      HONEYPOT_USERS: "${HONEYPOT_USERS:-}"
     labels:
       - "mbh.logging.enabled=true"
     depends_on:

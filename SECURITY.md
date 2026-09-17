@@ -17,8 +17,8 @@ local `docker compose up --build` reproduction.
 
 ## Operational notes for deployers
 
-- Set `HONEYPOT_USERS` (`user:pass,user2:pass2`) via secrets so production
-  credentials differ from the public decoys in `cmd/seed-redis/seed_data.yaml`.
+- Honeypot credentials are hardcoded in `cmd/seed-redis/seed_data.yaml`
+  (`mysql_users`). Change them before any public deployment.
 - All seed data is synthetic and fictional; do not treat it as a real leak.
 - Keep Elasticsearch/Kibana/Redis on localhost only (default compose
   bindings). `xpack.security.enabled=false` is local-dev only — never expose

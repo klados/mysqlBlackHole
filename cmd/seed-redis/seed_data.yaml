@@ -258,7 +258,7 @@ supported_dbs:
   - name: prod_backup_Q1_2026
     users:
       - root
-      - app
+      - admin
     tables:
       - clients
       - counterparties
@@ -440,11 +440,9 @@ supported_dbs:
           - [29, 29, 'Operational', 'Medium', 'Environmental impact study reveals underground storage tanks are corroding.']
           - [30, 30, 'Reputational', 'High', 'Green fund investors have withdrawn commitment citing ESG violations at target site.']
 
-# PUBLIC DECOY CREDENTIALS — visible in this open-source repo by design.
-# Never reuse these passwords anywhere real. In production set HONEYPOT_USERS
-# ("user:pass,user2:pass2") to override them; the seeder prefers the env var.
+# Hardcoded honeypot credentials seeded into Redis as mysql_users.
 mysql_users:
   - username: root
     password: s3cret
-  - username: app
+  - username: admin
     password: 123456
