@@ -8,6 +8,7 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 go build -o /out/mysqlBlackHole .
 RUN CGO_ENABLED=0 go build -o /out/seed-redis ./cmd/seed-redis
+RUN CGO_ENABLED=0 go build -o /out/report-generator ./cmd/report_generator
 
 FROM alpine:3.20 AS app
 
@@ -21,3 +22,9 @@ FROM alpine:3.20 AS seed
 WORKDIR /app
 COPY --from=build /out/seed-redis .
 ENTRYPOINT ["./seed-redis"]
+
+FROM alpine:3.20 AS report
+
+WORKDIR /app
+COPY --from=build /out/report-generator .
+ENTRYPOINT ["./report-generator"]

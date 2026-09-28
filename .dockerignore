@@ -4,4 +4,5 @@
 .agents
 mysqlBlackHole
 seed-redis
+report-generator
 *.log

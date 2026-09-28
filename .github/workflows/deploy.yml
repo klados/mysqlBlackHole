@@ -39,6 +39,7 @@ jobs:
         env:
           DEPLOY_PORT: ${{ vars.PORT }}
           DEPLOY_REDIS_ADDR: ${{ vars.REDIS_ADDR }}
+          DEPLOY_DISCORD_REPORT_WEBHOOK: ${{ secrets.DISCORD_REPORT_WEBHOOK }}
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -46,7 +47,7 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           # Pass runner-side env to the remote script by value (no inline
           # interpolation), so special characters survive.
-          envs: DEPLOY_PORT,DEPLOY_REDIS_ADDR
+          envs: DEPLOY_PORT,DEPLOY_REDIS_ADDR,DEPLOY_DISCORD_REPORT_WEBHOOK
           script: |
             set -eu
             cd /srv/mysqlBlackHole
@@ -54,6 +55,7 @@ jobs:
             rm -rf .git .github .idea .agents .env || true
             export PORT="$DEPLOY_PORT"
             export REDIS_ADDR="$DEPLOY_REDIS_ADDR"
+            export DISCORD_REPORT_WEBHOOK="${DEPLOY_DISCORD_REPORT_WEBHOOK:-}"
             docker compose up -d --build
             # `up --build` skips the `seed` profile, so build it explicitly.
             # Otherwise `run` below can reuse a stale seed image.

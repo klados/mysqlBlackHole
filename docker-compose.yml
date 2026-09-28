@@ -44,7 +44,10 @@ services:
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.17.3
-    # Local-dev only: no auth. Keep unexposed (no ports published) and use SSH tunnel.
+    # Local-dev only: no auth. Bound to localhost (like redis/kibana) so only
+    # this machine — or an SSH tunnel — can reach it. Never expose publicly.
+    ports:
+      - "127.0.0.1:9200:9200"
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
@@ -81,4 +84,47 @@ services:
     depends_on:
       elasticsearch:
         condition: service_healthy
+    restart: unless-stopped
+
+  report:
+    build:
+      context: .
+      target: report
+    # Image name must match ofelia.job-run.report.image below so the daily
+    # job reuses this locally built image.
+    image: mysqlblackhole-report
+    environment:
+      # In-compose address; the localhost default in .env is for host runs.
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      ES_INDEX: "${ES_INDEX:-mysqlblackhole}"
+      DISCORD_REPORT_WEBHOOK: "${DISCORD_REPORT_WEBHOOK:-}"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    # One-shot: runs once on `docker compose up` and manually via
+    # `docker compose run --rm report [--window 1h]`. Deliberately NOT
+    # labelled for Vector — its own logs must not pollute the next report.
+    restart: "no"
+
+  ofelia:
+    # Only maintained tag (tracks v0.3.22); job-run API verified against docs.
+    image: mcuadros/ofelia:latest
+    command: daemon --docker
+    # docker.sock is privileged (read-only here for scheduling). Restrict host access.
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    labels:
+      ofelia.job-run.report.schedule: "${REPORT_SCHEDULE:-0 8 * * *}"
+      ofelia.job-run.report.image: "mysqlblackhole-report"
+      ofelia.job-run.report.command: "--window=${REPORT_WINDOW:-24h}"
+      # Must be the compose default network so the job resolves `elasticsearch`.
+      # Falls back to this checkout's project/network name; override with
+      # COMPOSE_PROJECT_NAME when using `docker compose -p <name>`.
+      ofelia.job-run.report.network: "${COMPOSE_PROJECT_NAME:-mysqlblackhole}_default"
+      ofelia.job-run.report.environment: '["ELASTICSEARCH_URL=http://elasticsearch:9200", "ES_INDEX=${ES_INDEX:-mysqlblackhole}", "DISCORD_REPORT_WEBHOOK=${DISCORD_REPORT_WEBHOOK:-}"]'
+      # Local-only image: never try the registry, just use the local build.
+      ofelia.job-run.report.pull: "false"
     restart: unless-stopped

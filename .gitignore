@@ -1,6 +1,7 @@
 .idea
 /mysqlBlackHole
 /seed-redis
+/report-generator
 .env
 .env.*
 !.env.example

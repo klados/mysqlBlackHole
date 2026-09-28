@@ -37,6 +37,11 @@ Copy `.env.example` to `.env`:
 |-------------|-----------|------------------------|
 | `PORT`      | `3306`    | TCP port to listen on  |
 | `REDIS_ADDR`| (see .env)| Redis connection addr   |
+| `ELASTICSEARCH_URL` | `http://localhost:9200` | Elasticsearch endpoint for the report generator (`cmd/report_generator`); inside the compose network use `http://elasticsearch:9200` |
+| `ES_INDEX`  | `mysqlblackhole` | Elasticsearch index the report generator queries (must match `vector.yaml`) |
+| `DISCORD_REPORT_WEBHOOK` | (unset) | Discord webhook the report generator posts the Markdown report to. Keep it secret; set it in `.env` or the environment |
+| `REPORT_SCHEDULE` | `0 8 * * *` | Daily Ofelia schedule for the `report` image (5-field cron, 08:00 UTC) |
+| `REPORT_WINDOW` | `24h` | Lookback window passed as `--window` to the scheduled report |
 
 > Configuration is resolved by Docker Compose interpolation, which reads shell
 > environment variables first, then the project `.env`. The defaults target the
@@ -55,6 +60,27 @@ docker compose run --rm --name mysqlblackhole-seed seed
 
 # optional: run the server on the host instead of in Docker
 go run .
+
+# Generate the report and deliver it to the Discord webhook.
+# It always prints both reports as Markdown and posts the same document as
+# report.md:
+#   - usernames tried (attempts, plus success/failure split)
+#   - source IPs (log lines per IP)
+# In Docker (recommended): one-shot, with the in-compose Elasticsearch URL
+# wired in; the window defaults to the last 24h:
+#   docker compose run --rm report
+#   docker compose run --rm report --window 1h
+#   docker compose run --rm report --window 168h
+# Ofelia (`docker-compose.yml`) runs the same image automatically once a day
+# (08:00 UTC by default; `REPORT_SCHEDULE`/`REPORT_WINDOW` in `.env`).
+# On the host instead:
+#   go run ./cmd/report_generator
+#   go run ./cmd/report_generator --window 1h
+# The compose service binds 127.0.0.1:9200, so host runs work directly when
+# the stack runs locally. On a remote server, first open a tunnel:
+#   ssh -L 9200:localhost:9200 user@server
+# then run it as above. Set DISCORD_REPORT_WEBHOOK in .env or the environment.
+go run ./cmd/report_generator
 ```
 
 To try it out, connect a MySQL client to `localhost:3306` with a seeded user.
@@ -86,8 +112,8 @@ the seeded data.
    No `.env` file is required on the server: Docker Compose interpolates `PORT`
    and `REDIS_ADDR` (with their `redis:6379` default) from the shell environment.
 
-   Only `3306/tcp` is published; `9200`, `5601`, `8686`, and `6379` are not
-   reachable from the network.
+    Only `3306/tcp` is reachable from the network; `9200`, `5601`, and `6379`
+    are bound to localhost only (`8686` is not published at all).
 
    > **Elasticsearch has no auth (`xpack.security.enabled=false`)** by design for
    > local dev. Never expose `9200`/`5601` publicly; keep the localhost bindings
@@ -95,16 +121,18 @@ the seeded data.
    > to read container logs — that is privileged; restrict host access accordingly.
 
   2. Deploying via GitHub Actions: set `PORT`/`REDIS_ADDR` under **Repository →
-   Settings → Variables**, and `DEPLOY_HOST`,
+   Settings → Variables**, `DISCORD_REPORT_WEBHOOK` (daily report delivery;
+   without it the scheduled report fails) under **Secrets**, and `DEPLOY_HOST`,
    `DEPLOY_USER`, `DEPLOY_SSH_KEY` (private key) under **Secrets**. Pushing to `main` triggers `.github/workflows/deploy.yml`,
    which copies the project to the server and runs `docker compose up -d --build`
    plus the one-shot `seed` service.
 
-   ```sh
-   ssh -L 5601:localhost:5601 user@server
-   ```
+    ```sh
+    ssh -L 5601:localhost:5601 -L 9200:localhost:9200 user@server
+    ```
 
-   then open <http://localhost:5601> locally.
+    then open <http://localhost:5601> locally, and run the report generator
+    (`go run ./cmd/report_generator`) against the tunnelled `localhost:9200`.
 
 3. Lock down the machine with a firewall (UFW):
 
