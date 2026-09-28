@@ -26,7 +26,7 @@ type Config struct {
 func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)).With(slog.String("service", "seed-redis")))
 
-	if err := godotenv.Load(); err != nil {
+	if err := godotenv.Load(".env", "../.env"); err != nil {
 		slog.Info("No .env file found, using defaults")
 	}
 
