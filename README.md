@@ -66,6 +66,9 @@ go run .
 # report.md:
 #   - usernames tried (attempts, plus success/failure split)
 #   - source IPs (log lines per IP)
+#   - authenticated sessions (fp, ip, user, logins, commands; commands > 0 only)
+#   - top queries (exact SQL text with frequency)
+#   - authenticated commands (latest 100 query hits with fp, grouped by fp, time desc)
 # In Docker (recommended): one-shot, with the in-compose Elasticsearch URL
 # wired in; the window defaults to the last 24h:
 #   docker compose run --rm report

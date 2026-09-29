@@ -25,6 +25,15 @@ import (
 // dropping the tail.
 const aggSize = 10000
 
+// commandListSize caps how many recent query hits the authenticated-commands
+// listing fetches. Hits (not buckets) scale with traffic, so this stays small
+// and the report states how many of the total are shown.
+const commandListSize = 100
+
+// maxSQLLen caps how much of a single SQL statement is rendered in Markdown
+// so one huge injection payload cannot blow up the report.
+const maxSQLLen = 200
+
 func getEnv(key, def string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
@@ -171,6 +180,9 @@ type fields struct {
 	User string
 	IP   string
 	Msg  string
+	Fp   string
+	Sql  string
+	Db   string
 }
 
 // resolveFields discovers, in a single field-caps call, which field names are
@@ -184,6 +196,9 @@ func (c *ESClient) resolveFields(ctx context.Context) (fields, error) {
 		"user", "user.keyword",
 		"ip", "ip.keyword",
 		"msg", "msg.keyword",
+		"fp", "fp.keyword",
+		"sql", "sql.keyword",
+		"db", "db.keyword",
 	}
 	body, err := c.doGet(ctx, "/"+c.index+"/_field_caps?fields="+strings.Join(all, ","))
 	if err != nil {
@@ -199,6 +214,9 @@ func (c *ESClient) resolveFields(ctx context.Context) (fields, error) {
 		User: pickField(caps, "keyword", "user"),
 		IP:   pickField(caps, "keyword", "ip"),
 		Msg:  pickField(caps, "keyword", "msg"),
+		Fp:   pickField(caps, "keyword", "fp"),
+		Sql:  pickField(caps, "keyword", "sql"),
+		Db:   pickField(caps, "keyword", "db"),
 	}
 	if f.Time == "" {
 		return f, errors.New("no date field found in index " + strconv.Quote(c.index) + " (looked for time, @timestamp, timestamp)")
@@ -265,6 +283,44 @@ type userStat struct {
 type ipStat struct {
 	IP     string
 	Events int64
+}
+
+type sessionStat struct {
+	Fp       string
+	IP       string
+	User     string
+	Logins   int64
+	Commands int64
+}
+
+type queryStat struct {
+	Query string
+	Count int64
+}
+
+type commandEvent struct {
+	Time time.Time
+	IP   string
+	User string
+	Db   string
+	Sql  string
+}
+
+type commandGroup struct {
+	Fp       string
+	IP       string
+	User     string
+	Commands []commandEvent
+}
+
+// truncateSQL shortens a statement for Markdown rendering. It operates on
+// runes so multi-byte input is not split, and marks shortened output.
+func truncateSQL(s string) string {
+	r := []rune(s)
+	if len(r) <= maxSQLLen {
+		return s
+	}
+	return string(r[:maxSQLLen]) + "…"
 }
 
 type bucket struct {
@@ -349,6 +405,180 @@ func parseIPAgg(body []byte) ([]ipStat, bool, error) {
 	return stats, agg.SumOtherDocCount > 0, nil
 }
 
+type sessionBucket struct {
+	Key      string `json:"key"`
+	DocCount int64  `json:"doc_count"`
+	Logins   struct {
+		DocCount int64 `json:"doc_count"`
+	} `json:"logins"`
+	Commands struct {
+		DocCount int64 `json:"doc_count"`
+	} `json:"commands"`
+	IPs struct {
+		Buckets []struct {
+			Key string `json:"key"`
+		} `json:"buckets"`
+	} `json:"ips"`
+	Users struct {
+		Buckets []struct {
+			Key string `json:"key"`
+		} `json:"buckets"`
+	} `json:"users"`
+}
+
+func parseSessionAgg(body []byte) ([]sessionStat, bool, error) {
+	var resp struct {
+		Aggregations struct {
+			Sessions struct {
+				DocCountErrorUpperBound int64           `json:"doc_count_error_upper_bound"`
+				SumOtherDocCount        int64           `json:"sum_other_doc_count"`
+				Buckets                 []sessionBucket `json:"buckets"`
+			} `json:"sessions"`
+		} `json:"aggregations"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, false, wrapErr(err, "decode session aggregation")
+	}
+	agg := resp.Aggregations.Sessions
+	stats := make([]sessionStat, 0, len(agg.Buckets))
+	for _, b := range agg.Buckets {
+		if b.Logins.DocCount == 0 || b.Commands.DocCount == 0 {
+			continue
+		}
+		s := sessionStat{
+			Fp:       b.Key,
+			Logins:   b.Logins.DocCount,
+			Commands: b.Commands.DocCount,
+		}
+		if len(b.IPs.Buckets) > 0 {
+			s.IP = b.IPs.Buckets[0].Key
+		}
+		users := make([]string, 0, len(b.Users.Buckets))
+		for _, u := range b.Users.Buckets {
+			users = append(users, u.Key)
+		}
+		s.User = strings.Join(users, ", ")
+		stats = append(stats, s)
+	}
+	// Order by commands desc so the most active fingerprints come first.
+	for i := 1; i < len(stats); i++ {
+		for j := i; j > 0 && stats[j].Commands > stats[j-1].Commands; j-- {
+			stats[j], stats[j-1] = stats[j-1], stats[j]
+		}
+	}
+	return stats, agg.SumOtherDocCount > 0, nil
+}
+
+func parseQueryAgg(body []byte) ([]queryStat, bool, error) {
+	var resp struct {
+		Aggregations struct {
+			Queries struct {
+				DocCountErrorUpperBound int64 `json:"doc_count_error_upper_bound"`
+				SumOtherDocCount        int64 `json:"sum_other_doc_count"`
+				Buckets                 []struct {
+					Key      string `json:"key"`
+					DocCount int64  `json:"doc_count"`
+				} `json:"buckets"`
+			} `json:"queries"`
+		} `json:"aggregations"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, false, wrapErr(err, "decode query aggregation")
+	}
+	agg := resp.Aggregations.Queries
+	stats := make([]queryStat, 0, len(agg.Buckets))
+	for _, b := range agg.Buckets {
+		stats = append(stats, queryStat{Query: b.Key, Count: b.DocCount})
+	}
+	return stats, agg.SumOtherDocCount > 0, nil
+}
+
+// sourceKey maps a resolved (possibly .keyword-suffixed) field name back to
+// the _source document key.
+func sourceKey(resolved string) string {
+	return strings.TrimSuffix(resolved, ".keyword")
+}
+
+func sourceString(src map[string]json.RawMessage, key string) string {
+	if key == "" {
+		return ""
+	}
+	raw, ok := src[key]
+	if !ok {
+		return ""
+	}
+	var s string
+	if err := json.Unmarshal(raw, &s); err != nil {
+		return strings.Trim(string(bytes.TrimSpace(raw)), `"`)
+	}
+	return s
+}
+
+// parseCommandHits decodes a time-desc hits page into per-fingerprint groups.
+// Groups keep first-seen order, so with a time-desc page they are ordered by
+// latest activity desc; commands within a group stay time-desc.
+func parseCommandHits(body []byte, f fields) ([]commandGroup, int64, error) {
+	var resp struct {
+		Hits struct {
+			Total json.RawMessage `json:"total"`
+			Hits  []struct {
+				Source map[string]json.RawMessage `json:"_source"`
+			} `json:"hits"`
+		} `json:"hits"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, 0, wrapErr(err, "decode command hits")
+	}
+	total, err := parseTotalHits(body)
+	if err != nil {
+		return nil, 0, err
+	}
+	timeKey := sourceKey(f.Time)
+	fpKey := sourceKey(f.Fp)
+	ipKey := sourceKey(f.IP)
+	userKey := sourceKey(f.User)
+	dbKey := sourceKey(f.Db)
+	sqlKey := sourceKey(f.Sql)
+
+	groups := []commandGroup{}
+	byFp := map[string]int{}
+	for _, h := range resp.Hits.Hits {
+		fp := sourceString(h.Source, fpKey)
+		sql := sourceString(h.Source, sqlKey)
+		if fp == "" || sql == "" {
+			continue
+		}
+		ev := commandEvent{
+			IP:   sourceString(h.Source, ipKey),
+			User: sourceString(h.Source, userKey),
+			Db:   sourceString(h.Source, dbKey),
+			Sql:  sql,
+		}
+		if raw := sourceString(h.Source, timeKey); raw != "" {
+			if t, err := time.Parse(time.RFC3339Nano, raw); err == nil {
+				ev.Time = t
+			}
+		}
+		idx, ok := byFp[fp]
+		if !ok {
+			groups = append(groups, commandGroup{Fp: fp, IP: ev.IP, User: ev.User})
+			idx = len(groups) - 1
+			byFp[fp] = idx
+		}
+		g := &groups[idx]
+		if g.IP == "" && ev.IP != "" {
+			g.IP = ev.IP
+		}
+		if g.User == "" && ev.User != "" {
+			g.User = ev.User
+		} else if ev.User != "" && !strings.Contains(g.User, ev.User) {
+			g.User += ", " + ev.User
+		}
+		g.Commands = append(g.Commands, ev)
+	}
+	return groups, total, nil
+}
+
 // usersTried counts authentication attempts per username. Only auth_success and
 // auth_failure events count, so a busy session does not inflate the total.
 func (c *ESClient) usersTried(ctx context.Context, f fields, start, end time.Time) ([]userStat, bool, error) {
@@ -409,16 +639,136 @@ func (c *ESClient) sourceIPs(ctx context.Context, f fields, start, end time.Time
 	return parseIPAgg(body)
 }
 
+// authenticatedSessions groups auth_success and query events by client
+// fingerprint. Only fingerprints with at least one successful login and at
+// least one executed command are returned, ordered by command count desc.
+func (c *ESClient) authenticatedSessions(ctx context.Context, f fields, start, end time.Time) ([]sessionStat, bool, error) {
+	if f.Fp == "" || f.Msg == "" {
+		return nil, false, nil
+	}
+	filters := []any{
+		rangeQuery(f.Time, start, end),
+		map[string]any{"terms": map[string]any{f.Msg: []string{"auth_success", "query"}}},
+		map[string]any{"exists": map[string]any{"field": f.Fp}},
+	}
+	aggs := map[string]any{
+		"logins":   map[string]any{"filter": map[string]any{"term": map[string]any{f.Msg: "auth_success"}}},
+		"commands": map[string]any{"filter": map[string]any{"term": map[string]any{f.Msg: "query"}}},
+		"ips":      map[string]any{"terms": map[string]any{"field": f.IP, "size": 3}},
+	}
+	if f.User != "" {
+		aggs["users"] = map[string]any{"terms": map[string]any{"field": f.User, "size": 5}}
+	}
+	// The ips sub-aggregation needs a resolved IP field; without it the
+	// whole aggregation would fail, so skip the section gracefully.
+	if f.IP == "" {
+		delete(aggs, "ips")
+	}
+	body, err := c.doPost(ctx, "/"+c.index+"/_search", map[string]any{
+		"size": 0,
+		"query": map[string]any{
+			"bool": map[string]any{"filter": filters},
+		},
+		"aggs": map[string]any{
+			"sessions": map[string]any{
+				"terms": map[string]any{"field": f.Fp, "size": aggSize, "order": map[string]any{"_count": "desc"}},
+				"aggs":  aggs,
+			},
+		},
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	return parseSessionAgg(body)
+}
+
+// topQueries counts exact-match SQL statements globally in the window, most
+// frequent first (e.g. "SELECT 1 | 5"). Variants that differ in case or
+// whitespace count separately to keep forensic fidelity.
+func (c *ESClient) topQueries(ctx context.Context, f fields, start, end time.Time) ([]queryStat, bool, error) {
+	if f.Msg == "" || f.Sql == "" {
+		return nil, false, nil
+	}
+	body, err := c.doPost(ctx, "/"+c.index+"/_search", map[string]any{
+		"size": 0,
+		"query": map[string]any{
+			"bool": map[string]any{
+				"filter": []any{
+					rangeQuery(f.Time, start, end),
+					map[string]any{"term": map[string]any{f.Msg: "query"}},
+					map[string]any{"exists": map[string]any{"field": f.Sql}},
+				},
+			},
+		},
+		"aggs": map[string]any{
+			"queries": map[string]any{
+				"terms": map[string]any{"field": f.Sql, "size": aggSize, "order": map[string]any{"_count": "desc"}},
+			},
+		},
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	return parseQueryAgg(body)
+}
+
+// authenticatedCommands lists individual query hits with their fingerprint,
+// time-desc, grouped by fp with groups ordered by latest activity desc. Every
+// query log line is emitted post-auth (handler.go HandleQuery), so hits are
+// authenticated by construction. At most commandListSize hits are fetched;
+// the total is returned so the report can state how many are shown.
+func (c *ESClient) authenticatedCommands(ctx context.Context, f fields, start, end time.Time) ([]commandGroup, int64, error) {
+	if f.Msg == "" || f.Fp == "" || f.Sql == "" {
+		return nil, 0, nil
+	}
+	includes := []string{}
+	for _, key := range []string{sourceKey(f.Time), sourceKey(f.Fp), sourceKey(f.Sql)} {
+		if key != "" {
+			includes = append(includes, key)
+		}
+	}
+	for _, key := range []string{sourceKey(f.IP), sourceKey(f.User), sourceKey(f.Db)} {
+		if key != "" {
+			includes = append(includes, key)
+		}
+	}
+	body, err := c.doPost(ctx, "/"+c.index+"/_search", map[string]any{
+		"size":             commandListSize,
+		"track_total_hits": true,
+		"_source":          includes,
+		"sort":             []any{map[string]any{f.Time: map[string]any{"order": "desc"}}},
+		"query": map[string]any{
+			"bool": map[string]any{
+				"filter": []any{
+					rangeQuery(f.Time, start, end),
+					map[string]any{"term": map[string]any{f.Msg: "query"}},
+					map[string]any{"exists": map[string]any{"field": f.Fp}},
+				},
+			},
+		},
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	return parseCommandHits(body, f)
+}
+
 type report struct {
-	Index          string
-	Window         time.Duration
-	Start          time.Time
-	End            time.Time
-	Docs           int64
-	Users          []userStat
-	UsersTruncated bool
-	IPs            []ipStat
-	IPsTruncated   bool
+	Index             string
+	Window            time.Duration
+	Start             time.Time
+	End               time.Time
+	Docs              int64
+	Users             []userStat
+	UsersTruncated    bool
+	IPs               []ipStat
+	IPsTruncated      bool
+	Sessions          []sessionStat
+	SessionsTruncated bool
+	Queries           []queryStat
+	QueriesTruncated  bool
+	CommandGroups     []commandGroup
+	CommandTotal      int64
 }
 
 // humanDuration renders a duration for a heading: 24h -> "24h", 90m -> "90m".
@@ -471,7 +821,7 @@ func renderMarkdown(r report) string {
 
 	b.WriteString("## Source IPs\n\n")
 	if len(r.IPs) == 0 {
-		b.WriteString("_No source IPs in this window._\n")
+		b.WriteString("_No source IPs in this window._\n\n")
 	} else {
 		b.WriteString("| ip | events |\n")
 		b.WriteString("|----|--------|\n")
@@ -480,6 +830,73 @@ func renderMarkdown(r report) string {
 		}
 		if r.IPsTruncated {
 			b.WriteString("\n_More than " + strconv.Itoa(aggSize) + " source IPs; showing the top " + strconv.Itoa(aggSize) + "._\n")
+		}
+		b.WriteString("\n")
+	}
+
+	b.WriteString("## Authenticated sessions\n\n")
+	if len(r.Sessions) == 0 {
+		b.WriteString("_No authenticated sessions with commands in this window._\n")
+	} else {
+		b.WriteString("| fp | ip | user | logins | commands |\n")
+		b.WriteString("|----|----|------|--------|----------|\n")
+		for _, s := range r.Sessions {
+			b.WriteString("| " + mdEscape(s.Fp) +
+				" | " + mdEscape(s.IP) +
+				" | " + mdEscape(s.User) +
+				" | " + strconv.FormatInt(s.Logins, 10) +
+				" | " + strconv.FormatInt(s.Commands, 10) + " |\n")
+		}
+		if r.SessionsTruncated {
+			b.WriteString("\n_More than " + strconv.Itoa(aggSize) + " fingerprints; showing the top " + strconv.Itoa(aggSize) + "._\n")
+		}
+		b.WriteString("\n")
+	}
+
+	b.WriteString("## Top queries\n\n")
+	if len(r.Queries) == 0 {
+		b.WriteString("_No queries in this window._\n\n")
+	} else {
+		b.WriteString("| query | count |\n")
+		b.WriteString("|-------|-------|\n")
+		for _, q := range r.Queries {
+			b.WriteString("| " + mdEscape(truncateSQL(q.Query)) +
+				" | " + strconv.FormatInt(q.Count, 10) + " |\n")
+		}
+		if r.QueriesTruncated {
+			b.WriteString("\n_More than " + strconv.Itoa(aggSize) + " distinct queries; showing the top " + strconv.Itoa(aggSize) + "._\n")
+		}
+		b.WriteString("\n_Very long queries may be missing: keyword fields ignore values over 256 characters._\n\n")
+	}
+
+	b.WriteString("## Authenticated commands\n\n")
+	if r.CommandTotal == 0 {
+		b.WriteString("_No authenticated commands in this window._\n")
+	} else {
+		shown := 0
+		for _, g := range r.CommandGroups {
+			shown += len(g.Commands)
+		}
+		b.WriteString("Showing the latest " + strconv.Itoa(shown) + " of " +
+			strconv.FormatInt(r.CommandTotal, 10) + " commands, grouped by fp.\n\n")
+		for _, g := range r.CommandGroups {
+			header := "### fp `" + mdEscape(g.Fp) + "`"
+			if meta := strings.Trim(strings.Join([]string{mdEscape(g.IP), mdEscape(g.User)}, " / "), " /"); meta != "" {
+				header += " (" + meta + ")"
+			}
+			b.WriteString(header + "\n\n")
+			b.WriteString("| time | db | sql |\n")
+			b.WriteString("|------|----|-----|\n")
+			for _, ev := range g.Commands {
+				ts := ""
+				if !ev.Time.IsZero() {
+					ts = ev.Time.UTC().Format(time.RFC3339)
+				}
+				b.WriteString("| " + ts +
+					" | " + mdEscape(ev.Db) +
+					" | " + mdEscape(truncateSQL(ev.Sql)) + " |\n")
+			}
+			b.WriteString("\n")
 		}
 	}
 
@@ -521,6 +938,24 @@ func collect(ctx context.Context, c *ESClient, window time.Duration) (report, er
 		return rep, wrapErr(err, "aggregate source ips")
 	}
 	rep.IPs, rep.IPsTruncated = ips, ipsTruncated
+
+	sessions, sessionsTruncated, err := c.authenticatedSessions(ctx, f, rep.Start, rep.End)
+	if err != nil {
+		return rep, wrapErr(err, "aggregate authenticated sessions")
+	}
+	rep.Sessions, rep.SessionsTruncated = sessions, sessionsTruncated
+
+	queries, queriesTruncated, err := c.topQueries(ctx, f, rep.Start, rep.End)
+	if err != nil {
+		return rep, wrapErr(err, "aggregate top queries")
+	}
+	rep.Queries, rep.QueriesTruncated = queries, queriesTruncated
+
+	groups, total, err := c.authenticatedCommands(ctx, f, rep.Start, rep.End)
+	if err != nil {
+		return rep, wrapErr(err, "list authenticated commands")
+	}
+	rep.CommandGroups, rep.CommandTotal = groups, total
 
 	return rep, nil
 }
@@ -611,6 +1046,10 @@ func run(ctx context.Context, window time.Duration) error {
 		slog.Int64("docs", rep.Docs),
 		slog.Int("users", len(rep.Users)),
 		slog.Int("ips", len(rep.IPs)),
+		slog.Int("sessions", len(rep.Sessions)),
+		slog.Int("queries", len(rep.Queries)),
+		slog.Int("commandGroups", len(rep.CommandGroups)),
+		slog.Int64("commands", rep.CommandTotal),
 	)
 
 	md := renderMarkdown(rep)
@@ -635,7 +1074,7 @@ func main() {
 	window := flag.Duration("window", 24*time.Hour, "lookback window for the report (e.g. 30m, 1h, 24h, 168h)")
 	flag.Parse()
 
-	if err := godotenv.Load(); err != nil {
+	if err := godotenv.Load(".env", "../.env"); err != nil {
 		slog.Info("No .env file found, using defaults")
 	}
 
