@@ -40,7 +40,7 @@ Copy `.env.example` to `.env`:
 | `ELASTICSEARCH_URL` | `http://localhost:9200` | Elasticsearch endpoint for the report generator (`cmd/report_generator`); inside the compose network use `http://elasticsearch:9200` |
 | `ES_INDEX`  | `mysqlblackhole` | Elasticsearch index the report generator queries (must match `vector.yaml`) |
 | `DISCORD_REPORT_WEBHOOK` | (unset) | Discord webhook the report generator posts the Markdown report to. Keep it secret; set it in `.env` or the environment |
-| `REPORT_SCHEDULE` | `0 8 * * *` | Daily Ofelia schedule for the `report` image (5-field cron, 08:00 UTC) |
+| `REPORT_SCHEDULE` | `0 0 8 * * *` | Daily Ofelia schedule for the `report` image (6-field Quartz cron — Ofelia 0.3.x reads the first field as seconds — 08:00 UTC) |
 | `REPORT_WINDOW` | `24h` | Lookback window passed as `--window` to the scheduled report |
 
 > Configuration is resolved by Docker Compose interpolation, which reads shell

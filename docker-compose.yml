@@ -123,7 +123,11 @@ services:
       elasticsearch:
         condition: service_healthy
     labels:
-      ofelia.job-run.report.schedule: "${REPORT_SCHEDULE:-0 8 * * *}"
+      # Ofelia 0.3.x (robfig/cron v1) reads the FIRST field as SECONDS, so the
+      # schedule must be a 6-field Quartz expression "sec min hour dom mon dow".
+      # A 5-field "0 8 * * *" would mean "every hour at minute 8" — not 08:00
+      # daily. Keep the leading seconds field.
+      ofelia.job-run.report.schedule: "${REPORT_SCHEDULE:-0 0 8 * * *}"
       ofelia.job-run.report.image: "mysqlblackhole-report"
       ofelia.job-run.report.command: "--window=${REPORT_WINDOW:-24h}"
       # Must be the compose default network so the job resolves `elasticsearch`.
