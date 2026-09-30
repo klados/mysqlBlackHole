@@ -70,12 +70,14 @@ go run .
 #   - top queries (exact SQL text with frequency)
 #   - authenticated commands (latest 100 query hits with fp, grouped by fp, time desc)
 # In Docker (recommended): one-shot, with the in-compose Elasticsearch URL
-# wired in; the window defaults to the last 24h:
+# wired in; the window defaults to the last 24h. The `report` service is
+# manual-only (profile `report`), so `docker compose up` never runs it:
 #   docker compose run --rm report
 #   docker compose run --rm report --window 1h
 #   docker compose run --rm report --window 168h
-# Ofelia (`docker-compose.yml`) runs the same image automatically once a day
-# (08:00 UTC by default; `REPORT_SCHEDULE`/`REPORT_WINDOW` in `.env`).
+# Ofelia (`docker-compose.yml`) is the only automatic trigger: it runs the same
+# image once a day (08:00 UTC by default; `REPORT_SCHEDULE`/`REPORT_WINDOW` in
+# `.env`). Keep it that way — running `report` on `up` would double the webhooks.
 # On the host instead:
 #   go run ./cmd/report_generator
 #   go run ./cmd/report_generator --window 1h

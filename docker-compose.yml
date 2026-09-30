@@ -93,6 +93,10 @@ services:
     # Image name must match ofelia.job-run.report.image below so the daily
     # job reuses this locally built image.
     image: mysqlblackhole-report
+    # Manual-only: `docker compose up` must NOT run it, otherwise every deploy
+    # sends an extra report webhook on top of the daily Ofelia job. Run it with
+    # `docker compose run --rm report [--window 1h]`; Ofelia runs the image daily.
+    profiles: ["report"]
     environment:
       # In-compose address; the localhost default in .env is for host runs.
       ELASTICSEARCH_URL: http://elasticsearch:9200
@@ -101,9 +105,11 @@ services:
     depends_on:
       elasticsearch:
         condition: service_healthy
-    # One-shot: runs once on `docker compose up` and manually via
-    # `docker compose run --rm report [--window 1h]`. Deliberately NOT
-    # labelled for Vector — its own logs must not pollute the next report.
+    # One-shot: no restart, and (via the `report` profile above) not started by
+    # `docker compose up`. Runs only manually via
+    # `docker compose run --rm report [--window 1h]` or from the daily Ofelia
+    # job. Deliberately NOT labelled for Vector — its own logs must not pollute
+    # the next report.
     restart: "no"
 
   ofelia:

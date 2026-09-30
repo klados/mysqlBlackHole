@@ -57,8 +57,9 @@ jobs:
             export REDIS_ADDR="$DEPLOY_REDIS_ADDR"
             export DISCORD_REPORT_WEBHOOK="${DEPLOY_DISCORD_REPORT_WEBHOOK:-}"
             docker compose up -d --build
-            # `up --build` skips the `seed` profile, so build it explicitly.
-            # Otherwise `run` below can reuse a stale seed image.
-            docker compose build seed
+            # `up --build` skips profiled services, so build them explicitly.
+            # `report` must exist for the Ofelia job (pull: "false"); building
+            # `seed` avoids `run` below reusing a stale image.
+            docker compose build report seed
             docker rm -f mysqlblackhole-seed || true
             docker compose run --rm --build --name mysqlblackhole-seed seed
